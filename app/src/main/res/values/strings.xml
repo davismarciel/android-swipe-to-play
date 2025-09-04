@@ -1,0 +1,6 @@
+<resources>
+    <!--    Login screen texts-->
+    <string name="app_name">Swipe To Play</string>
+    <string name="app_tagline">Your Personalized Game Curator</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+</resources>

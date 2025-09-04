@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SwipeToPlay" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Cor de fundo da Splash -->
+        <item name="android:windowSplashScreenBackground">@mipmap/ic_launcher_adaptive_back</item>
+
+        <!-- Ícone que aparece na Splash -->
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+
+        <!-- Fundo da janela depois da splash -->
+        <item name="android:windowBackground">#0C1622</item>
+    </style>
+</resources>
