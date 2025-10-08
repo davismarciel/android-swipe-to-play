@@ -36,7 +36,11 @@ import com.project.swipetoplay.R
 import com.project.swipetoplay.ui.theme.SwipeToPlayTheme
 
 @Composable
-fun LoginScreen(modifier: Modifier = Modifier) {
+fun LoginScreen(
+    modifier: Modifier = Modifier,
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToGameDemo: () -> Unit = {}
+) {
     var showHelpDialog by remember { mutableStateOf(false) }
     Surface (
         modifier = modifier.fillMaxSize(),
@@ -63,7 +67,10 @@ fun LoginScreen(modifier: Modifier = Modifier) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                LoginContent()
+                LoginContent(
+                    onNavigateToProfile = onNavigateToProfile,
+                    onNavigateToGameDemo = onNavigateToGameDemo
+                )
 
                 if(showHelpDialog) {
                     AlertDialog(
@@ -85,7 +92,10 @@ fun LoginScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun LoginContent() {
+fun LoginContent(
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToGameDemo: () -> Unit = {}
+) {
     Image(
         painter = painterResource(id = R.drawable.ic_launcher_logo),
         contentDescription = stringResource(id = R.string.app_name),
@@ -107,14 +117,28 @@ fun LoginContent() {
 
     Spacer(modifier = Modifier.height(48.dp))
 
-    GoogleSignInButton()
+    GoogleSignInButton(
+        onSignInClick = onNavigateToProfile
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Button(
+        onClick = onNavigateToGameDemo,
+        modifier = Modifier
+            .padding(horizontal = 32.dp)
+            .fillMaxWidth()
+    ) {
+        Text("Experimentar Demo")
+    }
 }
 
 @Composable
 fun GoogleSignInButton(
+    onSignInClick: () -> Unit = {}
 ) {
     Button (
-        onClick = { /* Handle Google Sign-In */ },
+        onClick = onSignInClick,
 
         modifier = Modifier
             .padding(horizontal = 32.dp)
