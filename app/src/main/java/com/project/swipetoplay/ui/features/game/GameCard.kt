@@ -4,10 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,8 +28,8 @@ fun GameCard(
 ) {
     Card(
         modifier = modifier
-            .width(387.dp)
-            .height(603.dp),
+            .width(410.dp)
+            .height(640.dp),
         shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
@@ -40,7 +38,6 @@ fun GameCard(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Fallback background (always present)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -58,7 +55,6 @@ fun GameCard(
                 )
             }
 
-            // Game Image Background (overlays the fallback)
             val imageUrl = game.getSteamImageUrl()
             if (imageUrl != null) {
                 AsyncImage(
@@ -71,7 +67,6 @@ fun GameCard(
                 )
             }
 
-            // Gradient Overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -88,14 +83,12 @@ fun GameCard(
                     )
             )
 
-            // Information Section
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(24.dp)
                     .fillMaxWidth()
             ) {
-                // Game Name
                 Text(
                     text = game.name,
                     color = Color.White,
@@ -107,19 +100,20 @@ fun GameCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Tags
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     game.tags.take(3).forEach { tag ->
-                        GameTagChip(tag = tag)
+                        GameTagChip(
+                            tag = tag,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Release Date
                 Text(
                     text = game.releaseDate,
                     color = Color.White,
@@ -129,35 +123,14 @@ fun GameCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Description
                 Text(
                     text = game.description,
                     color = Color.White,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
-                    maxLines = 2,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // View Button - now inside the text container
-                Box(
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                ) {
-                    FloatingActionButton(
-                        onClick = onViewClick,
-                        modifier = Modifier.size(40.dp),
-                        containerColor = Color.White.copy(alpha = 0.2f),
-                        contentColor = Color.White
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Visibility,
-                            contentDescription = "View Game",
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
             }
         }
     }
@@ -178,10 +151,13 @@ private fun GameTagChip(
             color = Color.White,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
         )
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
