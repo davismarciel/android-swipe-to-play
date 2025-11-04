@@ -132,14 +132,6 @@ O aplicativo consome uma API REST desenvolvida em Laravel que fornece:
 - Preferências e configurações
 - Dados dos jogos via integração com Steam API
 
-## 📄 Licença
-
-Este projeto é privado e proprietário.
-
-## 👥 Contribuição
-
-Este é um projeto privado. Para sugestões ou problemas, entre em contato com a equipe de desenvolvimento.
-
 ---
 
 **Desenvolvido com ❤️ para gamers que querem descobrir seu próximo jogo favorito**
