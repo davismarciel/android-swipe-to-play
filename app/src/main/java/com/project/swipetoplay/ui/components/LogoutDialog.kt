@@ -57,7 +57,6 @@ fun LogoutDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Cancel Button
                         OutlinedButton(
                             onClick = onDismiss,
                             modifier = Modifier.weight(1f),
@@ -73,7 +72,6 @@ fun LogoutDialog(
                             )
                         }
 
-                        // Log Out Button
                         Button(
                             onClick = onConfirm,
                             modifier = Modifier.weight(1f),
