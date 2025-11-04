@@ -15,121 +15,156 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.project.swipetoplay.domain.model.GoogleUser
 import com.project.swipetoplay.ui.theme.*
+import com.project.swipetoplay.ui.components.TopBar
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    user: GoogleUser? = null,
     onNavigateToSettings: () -> Unit = {},
-    onNavigateToEditProfile: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ProfileBackground)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        ProfileBackground,
+                        Color(0xFF1A1A1A),
+                        ProfileBackground
+                    )
+                )
+            )
     ) {
-        // Top Bar
-        TopAppBar(
-            title = {
-                Text(
-                    text = "Swipe To Play",
-                    color = ProfileText,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            actions = {
-                IconButton(onClick = { /* Search action */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = ProfileText
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = ProfileBackground
-            )
-        )
-
-        // Profile Content with Scroll
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize()
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            TopBar()
 
-            // Profile Avatar
-            Box(
+            Column(
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(ProfileText)
-                    .align(Alignment.CenterHorizontally)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile Avatar",
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Box(
                     modifier = Modifier
-                        .size(60.dp)
-                        .align(Alignment.Center),
-                    tint = ProfileIconPurple
+                        .align(Alignment.CenterHorizontally)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                )
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(4.dp)
+                                .clip(CircleShape)
+                                .background(ProfileText)
+                        ) {
+                            if (user?.profilePictureUrl != null) {
+                                AsyncImage(
+                                    model = user.profilePictureUrl,
+                                    contentDescription = "Profile Avatar",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile Avatar",
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .align(Alignment.Center),
+                                    tint = ProfileIconPurple
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = user?.displayName ?: "User",
+                    color = ProfileText,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    letterSpacing = 0.5.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = user?.email ?: "",
+                    color = ProfileText.copy(alpha = 0.7f),
+                    fontSize = 16.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    fontWeight = FontWeight.Medium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                ProfileSection(
+                    title = "Settings",
+                    items = listOf(
+                        ProfileMenuItem(
+                            title = "Manage preferences",
+                            icon = Icons.Default.Settings,
+                            iconColor = ProfileText,
+                            onClick = onNavigateToSettings
+                        ),
+                        ProfileMenuItem(
+                            title = "Notifications",
+                            icon = Icons.Default.Notifications,
+                            iconColor = ProfileText,
+                            onClick = onNavigateToNotifications
+                        )
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ProfileSection(
+                    title = "Account",
+                    items = listOf(
+                        ProfileMenuItem(
+                            title = "Log out",
+                            icon = Icons.AutoMirrored.Filled.ExitToApp,
+                            iconColor = ProfileIconRed,
+                            onClick = onLogout
+                        )
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Settings Section
-            ProfileSection(
-                title = "Settings",
-                items = listOf(
-                    ProfileMenuItem(
-                        title = "Manage preferences",
-                        icon = Icons.Default.Settings,
-                        iconColor = ProfileText,
-                        onClick = onNavigateToSettings
-                    ),
-                    ProfileMenuItem(
-                        title = "Notifications",
-                        icon = Icons.Default.Notifications,
-                        iconColor = ProfileText,
-                        onClick = onNavigateToNotifications
-                    )
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Account Section
-            ProfileSection(
-                title = "Account",
-                items = listOf(
-                    ProfileMenuItem(
-                        title = "Edit Profile",
-                        icon = Icons.Default.Edit,
-                        iconColor = ProfileText,
-                        onClick = onNavigateToEditProfile
-                    ),
-                    ProfileMenuItem(
-                        title = "Log out",
-                        icon = Icons.AutoMirrored.Filled.ExitToApp,
-                        iconColor = ProfileIconRed,
-                        onClick = onLogout
-                    )
-                )
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -164,25 +199,36 @@ private fun ProfileMenuItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp)
+            .height(80.dp)
             .clickable { item.onClick() },
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = ProfileCardBackground
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = item.title,
-                modifier = Modifier.size(25.dp),
-                tint = item.iconColor
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = item.iconColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = item.title,
+                    modifier = Modifier.size(22.dp),
+                    tint = item.iconColor
+                )
+            }
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -190,14 +236,14 @@ private fun ProfileMenuItemCard(
                 text = item.title,
                 color = ProfileText,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
             )
 
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = "Navigate",
-                tint = ProfileText
+                tint = ProfileText.copy(alpha = 0.6f)
             )
         }
     }
@@ -217,7 +263,6 @@ fun ProfileScreenPreview() {
     SwipeToPlayTheme {
         ProfileScreen(
             onNavigateToSettings = {},
-            onNavigateToEditProfile = {},
             onNavigateToNotifications = {},
             onLogout = {}
         )
