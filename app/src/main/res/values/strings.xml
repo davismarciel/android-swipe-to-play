@@ -3,4 +3,12 @@
     <string name="app_name">Swipe To Play</string>
     <string name="app_tagline">Your Personalized Game Curator</string>
     <string name="sign_in_with_google">Sign in with Google</string>
+
+    <!--    Authentication error messages-->
+    <string name="auth_error_cancelled">Sign-in was cancelled</string>
+    <string name="auth_error_no_credentials">No credentials found. Please try again.</string>
+    <string name="auth_error_invalid_credentials">Invalid credentials. Please try again.</string>
+    <string name="auth_error_network">Network error. Please check your connection.</string>
+    <string name="auth_error_unknown">An unknown error occurred. Please try again.</string>
+    <string name="auth_error_parsing">Failed to process authentication. Please try again.</string>
 </resources>
