@@ -3,7 +3,7 @@
     <style name="Theme.SwipeToPlay" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowNoTitle">true</item>
 
-        <item name="android:windowSplashScreenBackground">@mipmap/ic_launcher_adaptive_back</item>
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
 
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
 
