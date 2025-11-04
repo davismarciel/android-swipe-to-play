@@ -13,10 +13,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.project.swipetoplay.data.preferences.NotificationPreferences
 import com.project.swipetoplay.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,17 +27,53 @@ fun NotificationScreen(
     onNavigateBack: () -> Unit = {},
     onSaveChanges: () -> Unit = {}
 ) {
-    var swipeReadyNotification by remember { mutableStateOf(true) }
-    var soundEnabled by remember { mutableStateOf(true) }
-    var vibrationEnabled by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    val notificationPrefs = remember { NotificationPreferences(context) }
+    
+    var swipeReadyNotification by remember { 
+        mutableStateOf(notificationPrefs.swipeReadyNotification) 
+    }
+    var soundEnabled by remember { 
+        mutableStateOf(notificationPrefs.soundEnabled) 
+    }
+    var vibrationEnabled by remember { 
+        mutableStateOf(notificationPrefs.vibrationEnabled) 
+    }
+    var pushNotifications by remember { 
+        mutableStateOf(notificationPrefs.pushNotifications) 
+    }
+    var emailNotifications by remember { 
+        mutableStateOf(notificationPrefs.emailNotifications) 
+    }
+    
+    fun saveSettings() {
+        notificationPrefs.saveAll(
+            swipeReady = swipeReadyNotification,
+            sound = soundEnabled,
+            vibration = vibrationEnabled,
+            push = pushNotifications,
+            email = emailNotifications
+        )
+        onSaveChanges()
+    }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ProfileBackground)
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        ProfileBackground,
+                        Color(0xFF1A1A1A),
+                        ProfileBackground
+                    )
+                )
+            )
     ) {
-        // Top Bar
-        TopAppBar(
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            TopAppBar(
             title = {
                 Text(
                     text = "Notifications",
@@ -58,7 +96,6 @@ fun NotificationScreen(
             )
         )
 
-        // Content with Scroll
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,7 +104,6 @@ fun NotificationScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Swipe Ready Notifications
             NotificationSection(
                 title = "Swipe Ready",
                 description = "Get notified when you can swipe again"
@@ -81,7 +117,6 @@ fun NotificationScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sound & Vibration
             NotificationSection(
                 title = "Sound & Vibration",
                 description = "Control audio and haptic feedback"
@@ -98,29 +133,49 @@ fun NotificationScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            NotificationSection(
+                title = "Notification Types",
+                description = "Choose how you want to receive notifications"
+            ) {
+                SwitchItem(
+                    text = "Push notifications",
+                    isEnabled = pushNotifications,
+                    onToggle = { pushNotifications = !pushNotifications }
+                )
+                SwitchItem(
+                    text = "Email notifications",
+                    isEnabled = emailNotifications,
+                    onToggle = { emailNotifications = !emailNotifications }
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Save Changes Button
             Button(
-                onClick = onSaveChanges,
+                onClick = { saveSettings() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ProfileIconPurple
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 Text(
                     text = "Save Changes",
                     color = Color.White,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
     }
 }
 
