@@ -6,6 +6,8 @@ import com.project.swipetoplay.data.remote.api.RetrofitClient
 import com.project.swipetoplay.data.remote.dto.GenreResponse
 import com.project.swipetoplay.data.remote.dto.CategoryResponse
 import com.project.swipetoplay.data.repository.UserPreferenceRepository
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,7 +59,6 @@ class PreferencesViewModel(
     
     private var savedState: PreferencesUiState? = null
     
-    // Cache to avoid loading genres multiple times
     private var genresLoaded = false
 
     init {
@@ -97,7 +98,6 @@ class PreferencesViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
             try {
-                // Load genres and user preferences in parallel for better performance
                 val genresDeferred = async { 
                     if (!genresLoaded || _uiState.value.availableGenres.isEmpty()) {
                         loadGenres()
@@ -110,25 +110,24 @@ class PreferencesViewModel(
                     loadUserPreferences()
                 }
                 
-                // Wait for both to complete in parallel
                 val genresResult = genresDeferred.await()
                 preferencesDeferred.await()
                 
                 if (genresResult.isFailure) {
-                    val errorMessage = genresResult.exceptionOrNull()?.message ?: "Failed to load genres"
-                    android.util.Log.e("PreferencesViewModel", "Failed to load genres: $errorMessage")
+                    val exception = genresResult.exceptionOrNull()
+                    ErrorLogger.logError("PreferencesViewModel", "Failed to load genres: ${exception?.message}", exception)
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = "Failed to load genres: $errorMessage"
+                        error = ErrorHandler.getUserFriendlyMessage(exception ?: Exception("Failed to load genres"))
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(isLoading = false)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("PreferencesViewModel", "Error loading preferences data", e)
+                ErrorLogger.logError("PreferencesViewModel", "Error loading preferences data", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Failed to load preferences: ${e.message}"
+                    error = ErrorHandler.getUserFriendlyMessage(e)
                 )
             }
         }
@@ -140,19 +139,19 @@ class PreferencesViewModel(
      */
     private suspend fun loadGenres(): Result<List<GenreResponse>> {
         return try {
-            android.util.Log.d("PreferencesViewModel", "🎮 Starting to load genres from API...")
+            ErrorLogger.logDebug("PreferencesViewModel", "Starting to load genres from API")
             val response = gameApiService.getGenres()
-            android.util.Log.d("PreferencesViewModel", "📡 API response code: ${response.code()}, isSuccessful: ${response.isSuccessful}")
+            ErrorLogger.logDebug("PreferencesViewModel", "API response code: ${response.code()}, isSuccessful: ${response.isSuccessful}")
             
             if (response.isSuccessful) {
                 val body = response.body()
-                android.util.Log.d("PreferencesViewModel", "📦 Response body - success: ${body?.success}, data: ${body?.data?.size} genres")
+                ErrorLogger.logDebug("PreferencesViewModel", "Response body - success: ${body?.success}, data: ${body?.data?.size} genres")
                 
                 if (body?.success == true && body.data != null) {
                     val genres = body.data
                     
                     if (genres.isEmpty()) {
-                        android.util.Log.w("PreferencesViewModel", "⚠️ Received empty genres list")
+                        ErrorLogger.logWarning("PreferencesViewModel", "Received empty genres list", null)
                         return Result.failure(Exception("No genres available"))
                     }
                     
@@ -162,22 +161,22 @@ class PreferencesViewModel(
                     }
                     
                     _uiState.value = _uiState.value.copy(availableGenres = genres)
-                    genresLoaded = true // Mark as loaded to use cache next time
-                    android.util.Log.d("PreferencesViewModel", "✅ Successfully loaded ${genres.size} genres: ${genres.map { it.name }}")
+                    genresLoaded = true
+                    ErrorLogger.logDebug("PreferencesViewModel", "Successfully loaded ${genres.size} genres: ${genres.map { it.name }}")
                     Result.success(genres)
                 } else {
                     val errorMsg = body?.message ?: "Failed to fetch genres"
-                    android.util.Log.e("PreferencesViewModel", "❌ API returned unsuccessful response: $errorMsg")
+                    ErrorLogger.logError("PreferencesViewModel", "API returned unsuccessful response: $errorMsg", null)
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
-                android.util.Log.e("PreferencesViewModel", "❌ HTTP error: $errorMsg")
-                Result.failure(Exception(errorMsg))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("PreferencesViewModel", "HTTP error: ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PreferencesViewModel", "❌ Exception while loading genres", e)
-            Result.failure(e)
+            ErrorLogger.logError("PreferencesViewModel", "Exception while loading genres", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -198,7 +197,7 @@ class PreferencesViewModel(
                     }
                     
                     _uiState.value = _uiState.value.copy(availableCategories = categories)
-                    android.util.Log.d("PreferencesViewModel", "Loaded ${categories.size} categories")
+                    ErrorLogger.logDebug("PreferencesViewModel", "Loaded ${categories.size} categories")
                     Result.success(categories)
                 } else {
                     Result.failure(Exception(body?.message ?: "Failed to fetch categories"))
@@ -218,7 +217,7 @@ class PreferencesViewModel(
         try {
             val result = userPreferenceRepository.getPreferences()
             result.onSuccess { preferences ->
-                android.util.Log.d("PreferencesViewModel", "Loaded user preferences")
+                ErrorLogger.logDebug("PreferencesViewModel", "Loaded user preferences")
                 
                 val currentState = _uiState.value
                 val newState = currentState.copy(
@@ -242,10 +241,14 @@ class PreferencesViewModel(
                 _uiState.value = newState
                 savedState = newState.copy(hasUnsavedChanges = false)
             }.onFailure { error ->
-                android.util.Log.w("PreferencesViewModel", "Failed to load preferences: ${error.message}")
+                ErrorLogger.logWarning("PreferencesViewModel", "Failed to load preferences: ${error.message}", error)
+
+                if (error.message?.contains("500") == true || error.message?.contains("Internal Server Error") == true) {
+                    ErrorLogger.logError("PreferencesViewModel", "Server error loading preferences - user may not have preferences yet", error)
+                }
             }
         } catch (e: Exception) {
-            android.util.Log.e("PreferencesViewModel", "Error loading user preferences", e)
+            ErrorLogger.logError("PreferencesViewModel", "Error loading user preferences", e)
         }
     }
 
@@ -276,7 +279,7 @@ class PreferencesViewModel(
             _uiState.value = _uiState.value.copy(selectedGenres = newSelected)
             checkForUnsavedChanges()
         } else {
-            android.util.Log.w("PreferencesViewModel", "Genre not found: $genreName")
+            ErrorLogger.logWarning("PreferencesViewModel", "Genre not found: $genreName", null)
         }
     }
 
@@ -303,7 +306,7 @@ class PreferencesViewModel(
             _uiState.value = _uiState.value.copy(selectedCategories = newSelected)
             checkForUnsavedChanges()
         } else {
-            android.util.Log.w("PreferencesViewModel", "Category not found: $categoryName")
+            ErrorLogger.logWarning("PreferencesViewModel", "Category not found: $categoryName", null)
         }
     }
 
@@ -379,7 +382,7 @@ class PreferencesViewModel(
                 
                 val genresResult = userPreferenceRepository.updatePreferredGenres(genresList)
                 if (genresResult.isFailure) {
-                    android.util.Log.w("PreferencesViewModel", "Failed to update genres: ${genresResult.exceptionOrNull()?.message}")
+                    ErrorLogger.logWarning("PreferencesViewModel", "Failed to update genres: ${genresResult.exceptionOrNull()?.message}", genresResult.exceptionOrNull())
                 }
                 
                 val categoriesList = state.selectedCategories.map { categoryId ->
@@ -391,7 +394,7 @@ class PreferencesViewModel(
                 
                 val categoriesResult = userPreferenceRepository.updatePreferredCategories(categoriesList)
                 if (categoriesResult.isFailure) {
-                    android.util.Log.w("PreferencesViewModel", "Failed to update categories: ${categoriesResult.exceptionOrNull()?.message}")
+                    ErrorLogger.logWarning("PreferencesViewModel", "Failed to update categories: ${categoriesResult.exceptionOrNull()?.message}", categoriesResult.exceptionOrNull())
                 }
                 
                 val updatedState = _uiState.value.copy(
@@ -402,16 +405,16 @@ class PreferencesViewModel(
                 _uiState.value = updatedState
                 savedState = updatedState.copy(hasUnsavedChanges = false, saveSuccess = false)
                 
-                android.util.Log.d("PreferencesViewModel", "✅ Preferences saved successfully")
+                ErrorLogger.logDebug("PreferencesViewModel", "Preferences saved successfully")
                 
                 kotlinx.coroutines.delay(2000)
                 _uiState.value = _uiState.value.copy(saveSuccess = false)
                 
             } catch (e: Exception) {
-                android.util.Log.e("PreferencesViewModel", "Error saving preferences", e)
+                ErrorLogger.logError("PreferencesViewModel", "Error saving preferences", e)
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    error = "Failed to save preferences: ${e.message}"
+                    error = ErrorHandler.getUserFriendlyMessage(e)
                 )
             }
         }

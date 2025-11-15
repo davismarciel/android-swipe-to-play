@@ -1,11 +1,12 @@
 package com.project.swipetoplay.ui.features.login
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project.swipetoplay.data.auth.GoogleAuthManager
 import com.project.swipetoplay.domain.model.AuthResult
 import com.project.swipetoplay.domain.model.GoogleUser
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,11 +69,84 @@ class LoginViewModel(
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
+    init {
+        checkExistingAuth()
+        
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(3000) // Check every 3 seconds (reduzido para economizar recursos)
+                val tokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
+                val currentUser = _uiState.value.user
+                
+                if (currentUser != null) {
+                    if (tokenManager?.isAuthenticated() != true) {
+                        ErrorLogger.logWarning("LoginViewModel", "Token was cleared while user was authenticated, logging out", null)
+                        _uiState.update { 
+                            it.copy(
+                                user = null,
+                                errorMessage = "Sua sessão expirou. Por favor, faça login novamente."
+                            )
+                        }
+                        break
+                    }
+                } else {
+                    kotlinx.coroutines.delay(5000)
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if there's an existing valid token and restores user session
+     */
+    private fun checkExistingAuth() {
+        viewModelScope.launch {
+            try {
+                val tokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
+                if (tokenManager?.isAuthenticated() == true) {
+                    ErrorLogger.logDebug("LoginViewModel", "Existing token found, verifying with backend")
+                    
+                    val authApiService = com.project.swipetoplay.data.remote.api.RetrofitClient.authApiService
+                    val response = authApiService.getCurrentUser()
+                    
+                    if (response.isSuccessful) {
+                        val body = response.body()
+                        if (body?.success == true && body.data != null) {
+                            val userData = body.data["user"] as? Map<*, *>
+                            if (userData != null) {
+                                val user = GoogleUser(
+                                    id = (userData["email"] as? String) ?: "",
+                                    email = (userData["email"] as? String) ?: "",
+                                    displayName = (userData["name"] as? String) ?: "",
+                                    profilePictureUrl = (userData["avatar"] as? String)
+                                )
+                                
+                                ErrorLogger.logDebug("LoginViewModel", "Token verified, user restored: ${user.displayName}")
+                                _uiState.update { 
+                                    it.copy(user = user)
+                                }
+                                return@launch
+                            }
+                        }
+                    } else {
+                        ErrorLogger.logWarning("LoginViewModel", "Token verification failed: ${response.code()}, clearing token")
+                        tokenManager.clearToken()
+                    }
+                } else {
+                    ErrorLogger.logDebug("LoginViewModel", "No existing token found")
+                }
+            } catch (e: Exception) {
+                ErrorLogger.logError("LoginViewModel", "Error checking existing auth: ${e.message}", e)
+                com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()?.clearToken()
+            }
+        }
+    }
+
     /**
      * Initiates the Google Sign-In process.
      */
     fun onSignInClick() {
-        Log.d("LoginViewModel", "User clicked Sign-In button")
+        ErrorLogger.logDebug("LoginViewModel", "User clicked Sign-In button")
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
@@ -81,7 +155,7 @@ class LoginViewModel(
                 
                 when (result) {
                     is AuthResult.Success -> {
-                        Log.d("LoginViewModel", "Google authentication successful for user: ${result.user.displayName}")
+                        ErrorLogger.logDebug("LoginViewModel", "Google authentication successful for user: ${result.user.displayName}")
                         
                         _uiState.update { 
                             it.copy(
@@ -95,7 +169,7 @@ class LoginViewModel(
                         
                         when (backendResult) {
                             is GoogleAuthManager.BackendValidationResult.Success -> {
-                                Log.d("LoginViewModel", "Backend validation successful")
+                                ErrorLogger.logDebug("LoginViewModel", "Backend validation successful")
                                 _uiState.update {
                                     it.copy(
                                         isValidating = false,
@@ -105,19 +179,19 @@ class LoginViewModel(
                                 }
                             }
                             is GoogleAuthManager.BackendValidationResult.Error -> {
-                                Log.e("LoginViewModel", "Backend validation failed: ${backendResult.message}")
+                                ErrorLogger.logError("LoginViewModel", "Backend validation failed: ${backendResult.message}", null)
                                 _uiState.update {
                                     it.copy(
                                         isValidating = false,
                                         user = null,
-                                        errorMessage = "Validation failed: ${backendResult.message}"
+                                        errorMessage = backendResult.message
                                     )
                                 }
                             }
                         }
                     }
                     is AuthResult.Error -> {
-                        Log.e("LoginViewModel", "Google authentication error: ${result.message}")
+                        ErrorLogger.logError("LoginViewModel", "Google authentication error: ${result.message}", null)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -127,7 +201,7 @@ class LoginViewModel(
                         }
                     }
                     is AuthResult.Cancelled -> {
-                        Log.w("LoginViewModel", "Google authentication was cancelled")
+                        ErrorLogger.logWarning("LoginViewModel", "Google authentication was cancelled", null)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -138,13 +212,13 @@ class LoginViewModel(
                     }
                 }
             } catch (e: Exception) {
-                Log.e("LoginViewModel", "Sign-in error: ${e.message}", e)
+                ErrorLogger.logError("LoginViewModel", "Sign-in error: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         isValidating = false,
                         user = null,
-                        errorMessage = "Authentication error: ${e.message}"
+                        errorMessage = ErrorHandler.getUserFriendlyMessage(e)
                     )
                 }
             }
@@ -159,7 +233,7 @@ class LoginViewModel(
     fun handleAuthResult(result: AuthResult) {
         when (result) {
             is AuthResult.Success -> {
-                Log.d("LoginViewModel", "Authentication successful for user: ${result.user.displayName}")
+                ErrorLogger.logDebug("LoginViewModel", "Authentication successful for user: ${result.user.displayName}")
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -169,7 +243,7 @@ class LoginViewModel(
                 }
             }
             is AuthResult.Error -> {
-                Log.e("LoginViewModel", "Authentication error: ${result.message}")
+                ErrorLogger.logError("LoginViewModel", "Authentication error: ${result.message}", null)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -179,7 +253,7 @@ class LoginViewModel(
                 }
             }
             is AuthResult.Cancelled -> {
-                Log.w("LoginViewModel", "Authentication was cancelled")
+                ErrorLogger.logWarning("LoginViewModel", "Authentication was cancelled", null)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -202,11 +276,11 @@ class LoginViewModel(
      * Signs out the current user.
      */
     fun signOut() {
-        Log.d("LoginViewModel", "Signing out user")
+        ErrorLogger.logDebug("LoginViewModel", "Signing out user")
         viewModelScope.launch {
             authManager.signOut()
             _uiState.update { LoginUiState() }
-            Log.d("LoginViewModel", "User signed out, state reset")
+            ErrorLogger.logDebug("LoginViewModel", "User signed out, state reset")
         }
     }
 }
