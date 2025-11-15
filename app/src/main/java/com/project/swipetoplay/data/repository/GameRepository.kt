@@ -1,10 +1,11 @@
 package com.project.swipetoplay.data.repository
 
-import android.util.Log
 import com.project.swipetoplay.data.remote.api.GameApiService
 import com.project.swipetoplay.data.remote.api.RetrofitClient
 import com.project.swipetoplay.data.remote.dto.ApiResponse
 import com.project.swipetoplay.data.remote.dto.GameResponse
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 import retrofit2.Response
 
 /**
@@ -42,10 +43,13 @@ class GameRepository {
                     Result.failure(Exception(body?.message ?: "Failed to fetch games"))
                 }
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("GameRepository", "Failed to fetch games: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ErrorLogger.logError("GameRepository", "Exception while fetching games: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -54,35 +58,28 @@ class GameRepository {
      */
     suspend fun getGameById(id: Int): Result<GameResponse> {
         return try {
-            Log.d("GameRepository", "=== FETCHING GAME BY ID: $id ===")
+            ErrorLogger.logDebug("GameRepository", "Fetching game by ID: $id")
             val response = apiService.getGameById(id)
             
             if (response.isSuccessful) {
                 val body = response.body()
-                Log.d("GameRepository", "Response success: ${body?.success}")
-                Log.d("GameRepository", "Response message: ${body?.message}")
+                ErrorLogger.logDebug("GameRepository", "Response success: ${body?.success}")
 
                 if (body?.success == true && body.data != null) {
                     val game = body.data
-                    Log.d("GameRepository", "Game name: ${game.name}")
-                    Log.d("GameRepository", "Raw communityRating from API: ${game.communityRating}")
-                    game.communityRating?.let { rating ->
-                        Log.d("GameRepository", "  Raw toxicity: ${rating.toxicity}")
-                        Log.d("GameRepository", "  Raw bugs: ${rating.bugs}")
-                        Log.d("GameRepository", "  Raw microtransactions: ${rating.microtransactions}")
-                        Log.d("GameRepository", "  Raw optimization: ${rating.optimization}")
-                        Log.d("GameRepository", "  Raw cheaters: ${rating.cheaters}")
-                    }
+                    ErrorLogger.logDebug("GameRepository", "Game name: ${game.name}")
                     Result.success(game)
                 } else {
-                    Result.failure(Exception(body?.message ?: "Failed to fetch game"))
+                    Result.failure(Exception(body?.message ?: "Failed to fetch game details"))
                 }
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("GameRepository", "Failed to fetch game: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Log.e("GameRepository", "Error fetching game: ${e.message}", e)
-            Result.failure(e)
+            ErrorLogger.logError("GameRepository", "Error fetching game: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -101,24 +98,13 @@ class GameRepository {
                     Result.failure(Exception(body?.message ?: "Failed to fetch genres"))
                 }
             } else {
-                when (response.code()) {
-                    401 -> {
-                        android.util.Log.w("GameRepository", "⚠️ Unauthenticated - Token invalid or expired")
-                        Result.failure(Exception("Token invalid or expired. Please login again."))
-                    }
-                    500 -> {
-                        android.util.Log.e("GameRepository", "❌ Server error: ${response.message()}")
-                        Result.failure(Exception("Internal server error. Please try again later."))
-                    }
-                    else -> {
-                        android.util.Log.w("GameRepository", "⚠️ HTTP ${response.code()}: ${response.message()}")
-                        Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
-                    }
-                }
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("GameRepository", "Failed to fetch genres: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            android.util.Log.e("GameRepository", "❌ Exception loading genres: ${e.message}", e)
-            Result.failure(e)
+            ErrorLogger.logError("GameRepository", "Exception loading genres: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -137,24 +123,13 @@ class GameRepository {
                     Result.failure(Exception(body?.message ?: "Failed to fetch categories"))
                 }
             } else {
-                when (response.code()) {
-                    401 -> {
-                        android.util.Log.w("GameRepository", "⚠️ Unauthenticated - Token invalid or expired")
-                        Result.failure(Exception("Token invalid or expired. Please login again."))
-                    }
-                    500 -> {
-                        android.util.Log.e("GameRepository", "❌ Server error: ${response.message()}")
-                        Result.failure(Exception("Internal server error. Please try again later."))
-                    }
-                    else -> {
-                        android.util.Log.w("GameRepository", "⚠️ HTTP ${response.code()}: ${response.message()}")
-                        Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
-                    }
-                }
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("GameRepository", "Failed to fetch categories: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            android.util.Log.e("GameRepository", "❌ Exception loading categories: ${e.message}", e)
-            Result.failure(e)
+            ErrorLogger.logError("GameRepository", "Exception loading categories: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 }

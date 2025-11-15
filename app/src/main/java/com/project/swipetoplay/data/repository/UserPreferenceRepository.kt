@@ -10,6 +10,8 @@ import com.project.swipetoplay.data.remote.dto.UpdatePreferredCategoriesRequest
 import com.project.swipetoplay.data.remote.dto.GenrePreferenceItem
 import com.project.swipetoplay.data.remote.dto.CategoryPreferenceItem
 import com.project.swipetoplay.data.remote.dto.UserPreferenceResponse
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 
 /**
  * Repository for user preference-related data operations
@@ -32,10 +34,13 @@ class UserPreferenceRepository {
                     Result.failure(Exception(body?.message ?: "Failed to fetch preferences"))
                 }
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("UserPreferenceRepository", "Failed to fetch preferences: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ErrorLogger.logError("UserPreferenceRepository", "Exception while fetching preferences: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 

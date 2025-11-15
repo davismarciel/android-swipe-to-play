@@ -2,6 +2,8 @@ package com.project.swipetoplay.data.repository
 
 import com.project.swipetoplay.data.remote.api.InteractionApiService
 import com.project.swipetoplay.data.remote.api.RetrofitClient
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 
 /**
  * Repository for game interaction operations (like, dislike, view)
@@ -20,10 +22,13 @@ class InteractionRepository {
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("InteractionRepository", "Failed to record like: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ErrorLogger.logError("InteractionRepository", "Exception while recording like: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -36,10 +41,13 @@ class InteractionRepository {
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("InteractionRepository", "Failed to record dislike: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ErrorLogger.logError("InteractionRepository", "Exception while recording dislike: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -52,10 +60,32 @@ class InteractionRepository {
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("InteractionRepository", "Failed to record view: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ErrorLogger.logError("InteractionRepository", "Exception while recording view: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
+        }
+    }
+
+    /**
+     * Clear all interactions for the current user (DEV ONLY)
+     */
+    suspend fun clearAllInteractions(): Result<Unit> {
+        return try {
+            val response = apiService.clearAllInteractions()
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("InteractionRepository", "Failed to clear interactions: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
+            }
+        } catch (e: Exception) {
+            ErrorLogger.logError("InteractionRepository", "Exception while clearing interactions: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 }
