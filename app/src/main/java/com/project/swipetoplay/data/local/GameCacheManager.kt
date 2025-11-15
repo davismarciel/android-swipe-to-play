@@ -6,6 +6,7 @@ import coil.request.ImageRequest
 import com.project.swipetoplay.data.repository.RecommendationRepository
 import com.project.swipetoplay.domain.mapper.GameMapper
 import com.project.swipetoplay.ui.features.game.Game
+import com.project.swipetoplay.data.error.ErrorLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,34 +55,37 @@ class GameCacheManager(
         onError: ((Exception) -> Unit)? = null
     ) {
         if (isPreloading) {
-            android.util.Log.d("GameCacheManager", "⚠️ Preload already in progress")
+            ErrorLogger.logDebug("GameCacheManager", "Preload already in progress")
             return
         }
 
         if (hasCachedGames()) {
-            android.util.Log.d("GameCacheManager", "✅ Games already cached, skipping preload")
+            ErrorLogger.logDebug("GameCacheManager", "Games already cached, skipping preload")
             cachedGames?.let { onSuccess?.invoke(it) }
             return
         }
 
         isPreloading = true
-        android.util.Log.d("GameCacheManager", "🔄 Starting game preload...")
+        ErrorLogger.logDebug("GameCacheManager", "Starting game preload")
 
         scope.launch(Dispatchers.IO) {
             try {
                 val result = recommendationRepository.getRecommendations(limit = 20)
 
                 result.fold(
-                    onSuccess = { gameResponses ->
-                        val games = GameMapper.toGameList(gameResponses)
-                        
-                        // Preload images for all games
+                    onSuccess = { response ->
+                        val games = GameMapper.toGameList(response.recommendations)
+                        ErrorLogger.logDebug(
+                            "GameCacheManager",
+                            "Cached payload - remaining today: ${response.dailyLimitInfo?.remainingToday ?: "unknown"}"
+                        )
+
                         preloadImages(games)
-                        
+
                         withContext(Dispatchers.Main) {
                             cachedGames = games
                             isPreloading = false
-                            android.util.Log.d("GameCacheManager", "✅ Successfully cached ${games.size} games")
+                            ErrorLogger.logDebug("GameCacheManager", "Successfully cached ${games.size} games")
                             onSuccess?.invoke(games)
                         }
                     },
@@ -89,7 +93,7 @@ class GameCacheManager(
                         withContext(Dispatchers.Main) {
                             isPreloading = false
                             val exception = throwable as? Exception ?: Exception(throwable.message, throwable)
-                            android.util.Log.e("GameCacheManager", "❌ Failed to preload games: ${exception.message}", exception)
+                            ErrorLogger.logError("GameCacheManager", "Failed to preload games: ${exception.message}", exception)
                             onError?.invoke(exception)
                         }
                     }
@@ -97,7 +101,7 @@ class GameCacheManager(
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     isPreloading = false
-                    android.util.Log.e("GameCacheManager", "❌ Exception during preload: ${e.message}", e)
+                    ErrorLogger.logError("GameCacheManager", "Exception during preload: ${e.message}", e)
                     onError?.invoke(e)
                 }
             }
@@ -113,7 +117,7 @@ class GameCacheManager(
                 game.getSteamImageUrl()
             }
 
-            android.util.Log.d("GameCacheManager", "🖼️ Preloading ${imageUrls.size} images...")
+            ErrorLogger.logDebug("GameCacheManager", "Preloading ${imageUrls.size} images")
 
             imageUrls.forEach { imageUrl ->
                 try {
@@ -123,11 +127,11 @@ class GameCacheManager(
                     
                     imageLoader.enqueue(request)
                 } catch (e: Exception) {
-                    android.util.Log.w("GameCacheManager", "⚠️ Failed to preload image: $imageUrl - ${e.message}")
+                    ErrorLogger.logWarning("GameCacheManager", "Failed to preload image: $imageUrl - ${e.message}", e)
                 }
             }
 
-            android.util.Log.d("GameCacheManager", "✅ Image preloading initiated for ${imageUrls.size} images")
+            ErrorLogger.logDebug("GameCacheManager", "Image preloading initiated for ${imageUrls.size} images")
         }
     }
 
@@ -136,7 +140,23 @@ class GameCacheManager(
      */
     fun clearCache() {
         cachedGames = null
-        android.util.Log.d("GameCacheManager", "🗑️ Cache cleared")
+        val prefs = context.getSharedPreferences("swipe_to_play_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("cache_was_cleared", true)
+            .apply()
+        ErrorLogger.logDebug("GameCacheManager", "Cache cleared")
+    }
+    
+    /**
+     * Check if cache was cleared and reset the flag
+     */
+    fun wasCacheCleared(): Boolean {
+        val prefs = context.getSharedPreferences("swipe_to_play_prefs", Context.MODE_PRIVATE)
+        val wasCleared = prefs.getBoolean("cache_was_cleared", false)
+        if (wasCleared) {
+            prefs.edit().remove("cache_was_cleared").apply()
+        }
+        return wasCleared
     }
 }
 
