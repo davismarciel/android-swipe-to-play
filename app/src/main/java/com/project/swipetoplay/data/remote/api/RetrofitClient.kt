@@ -23,10 +23,10 @@ object RetrofitClient {
      */
     fun initialize(context: Context) {
         if (tokenManager == null) {
-            android.util.Log.d("RetrofitClient", "🔧 Initializing TokenManager")
+            com.project.swipetoplay.data.error.ErrorLogger.logDebug("RetrofitClient", "Initializing TokenManager")
             tokenManager = TokenManager(context)
         } else {
-            android.util.Log.d("RetrofitClient", "⚠️ TokenManager already initialized")
+            com.project.swipetoplay.data.error.ErrorLogger.logDebug("RetrofitClient", "TokenManager already initialized")
         }
     }
 
@@ -45,19 +45,19 @@ object RetrofitClient {
 
             val currentTokenManager = tokenManager
             if (currentTokenManager == null) {
-                android.util.Log.w("RetrofitClient", "TokenManager not initialized, proceeding without auth")
+                com.project.swipetoplay.data.error.ErrorLogger.logWarning("RetrofitClient", "TokenManager not initialized, proceeding without auth", null)
                 return@Interceptor chain.proceed(originalRequest)
             }
 
             val token = currentTokenManager.getAuthorizationHeader()
             val authenticatedRequest = if (token != null) {
-                android.util.Log.d("RetrofitClient", "✅ Adding Authorization header to ${originalRequest.url.encodedPath}")
-                android.util.Log.d("RetrofitClient", "   Token preview: ${token.take(30)}...")
+                com.project.swipetoplay.data.error.ErrorLogger.logDebug("RetrofitClient", "Adding Authorization header to ${originalRequest.url.encodedPath}")
+                com.project.swipetoplay.data.error.ErrorLogger.logDebug("RetrofitClient", "Token preview: ${token.take(30)}...")
                 originalRequest.newBuilder()
                     .header("Authorization", token)
                     .build()
             } else {
-                android.util.Log.w("RetrofitClient", "⚠️ No access token found for ${originalRequest.url.encodedPath}, proceeding without auth")
+                com.project.swipetoplay.data.error.ErrorLogger.logWarning("RetrofitClient", "No access token found for ${originalRequest.url.encodedPath}, proceeding without auth", null)
                 originalRequest
             }
 
@@ -69,10 +69,17 @@ object RetrofitClient {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
+    private val gson: Gson by lazy {
+        GsonBuilder()
+            .setLenient()
+            .create()
+    }
+
     /**
-     * Create OkHttpClient lazily to ensure tokenManager is initialized
+     * Create a basic OkHttpClient without token refresh interceptor
+     * Used to create authApiService for token refresh
      */
-    private val okHttpClient: OkHttpClient by lazy {
+    private val basicOkHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor(createAuthInterceptor())
             .addInterceptor(loggingInterceptor)
@@ -82,12 +89,47 @@ object RetrofitClient {
             .build()
     }
 
-    private val gson: Gson by lazy {
-        GsonBuilder()
-            .setLenient()
-            .create()
+    /**
+     * Basic Retrofit instance without token refresh interceptor
+     * Used to create authApiService
+     */
+    private val basicRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(basicOkHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
     }
 
+    /**
+     * AuthApiService created with basic retrofit (without refresh interceptor)
+     * This is used by TokenRefreshInterceptor to avoid circular dependency
+     */
+    private val authApiServiceForRefresh: AuthApiService by lazy {
+        basicRetrofit.create(AuthApiService::class.java)
+    }
+
+    /**
+     * Create OkHttpClient with token refresh interceptor
+     * This is the main client used by all API services
+     */
+    private val okHttpClient: OkHttpClient by lazy {
+        val currentTokenManager = tokenManager
+            ?: throw IllegalStateException("TokenManager not initialized. Call RetrofitClient.initialize(context) first.")
+
+        OkHttpClient.Builder()
+            .addInterceptor(createAuthInterceptor())
+            .addNetworkInterceptor(TokenRefreshInterceptor(currentTokenManager, authApiServiceForRefresh))
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    /**
+     * Main Retrofit instance with token refresh interceptor
+     */
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -114,6 +156,10 @@ object RetrofitClient {
 
     val userPreferenceApiService: UserPreferenceApiService by lazy {
         retrofit.create(UserPreferenceApiService::class.java)
+    }
+
+    val onboardingApiService: OnboardingApiService by lazy {
+        retrofit.create(OnboardingApiService::class.java)
     }
 
     /**
