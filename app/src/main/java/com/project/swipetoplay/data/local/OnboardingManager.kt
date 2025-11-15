@@ -33,7 +33,9 @@ class OnboardingManager(private val context: Context) {
     }
 
     /**
-     * Reset onboarding (for testing or logout)
+     * Reset onboarding (for testing purposes only)
+     * Note: Onboarding should persist across logouts - users shouldn't see onboarding again
+     * after completing it once on their device
      */
     fun resetOnboarding() {
         prefs.edit()

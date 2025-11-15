@@ -3,9 +3,15 @@ package com.project.swipetoplay.ui.features.onboarding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project.swipetoplay.data.repository.GameRepository
-import com.project.swipetoplay.data.repository.UserPreferenceRepository
+import com.project.swipetoplay.data.repository.OnboardingRepository
 import com.project.swipetoplay.data.remote.dto.GenreResponse
 import com.project.swipetoplay.data.remote.dto.CategoryResponse
+import com.project.swipetoplay.data.remote.dto.OnboardingCompleteRequest
+import com.project.swipetoplay.data.remote.dto.PreferencesData
+import com.project.swipetoplay.data.remote.dto.MonetizationData
+import com.project.swipetoplay.data.remote.dto.GenrePreferenceItem
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,12 +30,11 @@ data class OnboardingUiState(
     val preferMac: Boolean = false,
     val preferLinux: Boolean = false,
     
+    val toleranceToxicity: Int = 5,
+    val toleranceBugs: Int = 5,
     val toleranceMicrotransactions: Int = 5,
-    val toleranceDlc: Int = 5,
-    val toleranceLootBoxes: Int = 5,
-    val toleranceBattlePass: Int = 5,
-    val preferCosmeticOnly: Boolean = false,
-    val avoidSubscription: Boolean = false,
+    val toleranceOptimization: Int = 5,
+    val toleranceCheaters: Int = 5,
     
     val isCompleted: Boolean = false
 )
@@ -40,7 +45,7 @@ data class OnboardingUiState(
  */
 class OnboardingViewModel(
     private val gameRepository: GameRepository,
-    private val userPreferenceRepository: UserPreferenceRepository
+    private val onboardingRepository: OnboardingRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
@@ -56,7 +61,7 @@ class OnboardingViewModel(
         if (hasLoadedData) return
         hasLoadedData = true
         
-        android.util.Log.d("OnboardingViewModel", "📥 Loading initial data (genres & categories)")
+        ErrorLogger.logDebug("OnboardingViewModel", "Loading initial data (genres & categories)")
         loadGenres()
         loadCategories()
     }
@@ -66,15 +71,15 @@ class OnboardingViewModel(
      */
     private fun loadGenres() {
         viewModelScope.launch {
-            android.util.Log.d("OnboardingViewModel", "🎮 Fetching genres from API...")
+            ErrorLogger.logDebug("OnboardingViewModel", "Fetching genres from API")
             val result = gameRepository.getGenres()
             result.fold(
                 onSuccess = { genres ->
-                    android.util.Log.d("OnboardingViewModel", "✅ Loaded ${genres.size} genres")
+                    ErrorLogger.logDebug("OnboardingViewModel", "Loaded ${genres.size} genres")
                     _uiState.value = _uiState.value.copy(availableGenres = genres)
                 },
                 onFailure = { exception ->
-                    android.util.Log.w("OnboardingViewModel", "⚠️ Failed to load genres: ${exception.message}")
+                    ErrorLogger.logWarning("OnboardingViewModel", "Failed to load genres: ${exception.message}", exception)
                 }
             )
         }
@@ -85,14 +90,14 @@ class OnboardingViewModel(
      */
     private fun loadCategories() {
         viewModelScope.launch {
-            android.util.Log.d("OnboardingViewModel", "📂 Fetching categories from API...")
+            ErrorLogger.logDebug("OnboardingViewModel", "Fetching categories from API")
             gameRepository.getCategories()
                 .fold(
                     onSuccess = { categories ->
-                        android.util.Log.d("OnboardingViewModel", "✅ Loaded ${categories.size} categories")
+                        ErrorLogger.logDebug("OnboardingViewModel", "Loaded ${categories.size} categories")
                     },
                     onFailure = { exception ->
-                        android.util.Log.w("OnboardingViewModel", "⚠️ Failed to load categories: ${exception.message}")
+                        ErrorLogger.logWarning("OnboardingViewModel", "Failed to load categories: ${exception.message}", exception)
                     }
                 )
         }
@@ -144,41 +149,64 @@ class OnboardingViewModel(
 
     /**
      * Save all preferences and complete onboarding
+     * Uses the new unified onboarding endpoint
      */
     fun completeOnboarding(onComplete: () -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
             try {
-                userPreferenceRepository.updatePreferences(
+                ErrorLogger.logDebug("OnboardingViewModel", "Completing onboarding")
+                
+                val preferencesData = PreferencesData(
                     preferWindows = _uiState.value.preferWindows,
                     preferMac = _uiState.value.preferMac,
                     preferLinux = _uiState.value.preferLinux
                 )
 
-                userPreferenceRepository.updateMonetizationPreferences(
+                val monetizationData = MonetizationData(
                     toleranceMicrotransactions = _uiState.value.toleranceMicrotransactions,
-                    toleranceDlc = _uiState.value.toleranceDlc,
-                    toleranceLootBoxes = _uiState.value.toleranceLootBoxes,
-                    toleranceBattlePass = _uiState.value.toleranceBattlePass,
-                    preferCosmeticOnly = _uiState.value.preferCosmeticOnly,
-                    avoidSubscription = _uiState.value.avoidSubscription
+                    toleranceDlc = _uiState.value.toleranceBugs, // Map bugs to DLC tolerance
+                    toleranceLootBoxes = _uiState.value.toleranceToxicity, // Map toxicity to loot boxes
+                    tolerancePayToWin = _uiState.value.toleranceCheaters, // Map cheaters to pay-to-win
+                    toleranceBattlePass = _uiState.value.toleranceOptimization // Map optimization to battle pass
                 )
 
-                val genresData = _uiState.value.selectedGenres.map { (genreId, weight) ->
-                    com.project.swipetoplay.data.remote.dto.GenrePreferenceItem(
+                val genresList = _uiState.value.selectedGenres.map { (genreId, weight) ->
+                    GenrePreferenceItem(
                         genreId = genreId,
                         preferenceWeight = weight
                     )
                 }
-                userPreferenceRepository.updatePreferredGenres(genresData)
 
-                _uiState.value = _uiState.value.copy(isCompleted = true, isLoading = false)
-                onComplete()
+                val request = OnboardingCompleteRequest(
+                    preferences = preferencesData,
+                    monetization = monetizationData,
+                    genres = genresList,
+                    categories = null // Not collecting categories in current onboarding flow
+                )
+
+                val result = onboardingRepository.completeOnboarding(request)
+                
+                result.fold(
+                    onSuccess = { data ->
+                        ErrorLogger.logDebug("OnboardingViewModel", "Onboarding completed successfully")
+                        _uiState.value = _uiState.value.copy(isCompleted = true, isLoading = false)
+                        onComplete()
+                    },
+                    onFailure = { exception ->
+                        ErrorLogger.logError("OnboardingViewModel", "Failed to complete onboarding: ${exception.message}", exception)
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = ErrorHandler.getUserFriendlyMessage(exception)
+                        )
+                    }
+                )
             } catch (e: Exception) {
+                ErrorLogger.logError("OnboardingViewModel", "Exception during onboarding: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to save preferences"
+                    error = ErrorHandler.getUserFriendlyMessage(e)
                 )
             }
         }
@@ -197,27 +225,24 @@ class OnboardingViewModel(
     }
 
     /**
-     * Update monetization preference
+     * Update community rating tolerance
      */
-    fun updateMonetizationPreference(key: String, value: Any) {
+    fun updateRatingTolerance(key: String, value: Int) {
         _uiState.value = when (key) {
-            "tolerance_microtransactions" -> _uiState.value.copy(
-                toleranceMicrotransactions = value as? Int ?: 5
+            "toxicity" -> _uiState.value.copy(
+                toleranceToxicity = value.coerceIn(0, 10)
             )
-            "tolerance_dlc" -> _uiState.value.copy(
-                toleranceDlc = value as? Int ?: 5
+            "bugs" -> _uiState.value.copy(
+                toleranceBugs = value.coerceIn(0, 10)
             )
-            "tolerance_loot_boxes" -> _uiState.value.copy(
-                toleranceLootBoxes = value as? Int ?: 5
+            "microtransactions" -> _uiState.value.copy(
+                toleranceMicrotransactions = value.coerceIn(0, 10)
             )
-            "tolerance_battle_pass" -> _uiState.value.copy(
-                toleranceBattlePass = value as? Int ?: 5
+            "optimization" -> _uiState.value.copy(
+                toleranceOptimization = value.coerceIn(0, 10)
             )
-            "prefer_cosmetic_only" -> _uiState.value.copy(
-                preferCosmeticOnly = value as? Boolean ?: false
-            )
-            "avoid_subscription" -> _uiState.value.copy(
-                avoidSubscription = value as? Boolean ?: false
+            "cheaters" -> _uiState.value.copy(
+                toleranceCheaters = value.coerceIn(0, 10)
             )
             else -> _uiState.value
         }
