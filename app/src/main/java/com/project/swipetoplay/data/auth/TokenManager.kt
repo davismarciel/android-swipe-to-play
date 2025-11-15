@@ -2,6 +2,7 @@ package com.project.swipetoplay.data.auth
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.project.swipetoplay.data.error.ErrorLogger
 
 /**
  * Manages JWT token storage and retrieval
@@ -30,7 +31,7 @@ class TokenManager(private val context: Context) {
      * Save JWT token to shared preferences
      */
     fun saveToken(accessToken: String, tokenType: String = "Bearer", expiresIn: Int? = null) {
-        android.util.Log.d("TokenManager", "💾 Saving new token (length: ${accessToken.length}, type: $tokenType)")
+        ErrorLogger.logDebug("TokenManager", "Saving new token (length: ${accessToken.length}, type: $tokenType)")
         
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, accessToken)
@@ -42,7 +43,7 @@ class TokenManager(private val context: Context) {
         cachedTokenType = tokenType
         isCacheValid = true
         
-        android.util.Log.d("TokenManager", "✅ Token saved and cache updated")
+        ErrorLogger.logDebug("TokenManager", "Token saved and cache updated")
     }
 
     /**
@@ -87,7 +88,7 @@ class TokenManager(private val context: Context) {
      * Clear stored token (logout)
      */
     fun clearToken() {
-        android.util.Log.d("TokenManager", "🗑️ Clearing token")
+        ErrorLogger.logDebug("TokenManager", "Clearing token")
         
         prefs.edit()
             .remove(KEY_ACCESS_TOKEN)
@@ -99,7 +100,7 @@ class TokenManager(private val context: Context) {
         cachedTokenType = null
         isCacheValid = false
         
-        android.util.Log.d("TokenManager", "✅ Token cleared and cache invalidated")
+        ErrorLogger.logDebug("TokenManager", "Token cleared and cache invalidated")
     }
 
     /**

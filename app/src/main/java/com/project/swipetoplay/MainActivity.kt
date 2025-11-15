@@ -31,8 +31,6 @@ import com.project.swipetoplay.ui.features.login.LoginViewModel
 import com.project.swipetoplay.ui.features.login.LoginViewModelFactory
 import com.project.swipetoplay.ui.features.onboarding.OnboardingScreen
 import com.project.swipetoplay.data.local.OnboardingManager
-import com.project.swipetoplay.data.local.GameCacheManager
-import com.project.swipetoplay.data.repository.RecommendationRepository
 import com.project.swipetoplay.ui.features.game.Game
 
 class MainActivity : ComponentActivity() {
@@ -59,21 +57,13 @@ fun AppContent() {
     val loginViewModel: LoginViewModel = viewModel(
         factory = LoginViewModelFactory(authManager)
     )
-    
-    // Create GameCacheManager instance
-    val gameCacheManager = remember {
-        GameCacheManager(
-            context = context,
-            recommendationRepository = RecommendationRepository()
-        )
-    }
 
     var currentScreen by remember { mutableStateOf("login") }
     var selectedGame by remember { mutableStateOf<Game?>(null) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     val navigationHistory = remember { mutableStateListOf<String>() }
     var isNavigatingBack by remember { mutableStateOf(false) }
-    var lastBackPressTime by remember { mutableStateOf(0L) }
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uiState by loginViewModel.uiState.collectAsState()
@@ -81,36 +71,18 @@ fun AppContent() {
     
     var hasCompletedOnboarding by remember { mutableStateOf(onboardingManager.hasCompletedOnboarding()) }
     
-    // Preload games when user is authenticated
     LaunchedEffect(isAuthenticated) {
         if (isAuthenticated) {
             hasCompletedOnboarding = onboardingManager.hasCompletedOnboarding()
-            
-            // Preload games cache
-            val tokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
-            if (tokenManager?.isAuthenticated() == true && !gameCacheManager.hasCachedGames() && !gameCacheManager.isPreloading()) {
-                android.util.Log.d("MainActivity", "🔄 Starting game cache preload...")
-                gameCacheManager.preloadGames(
-                    scope = coroutineScope,
-                    onSuccess = { games ->
-                        android.util.Log.d("MainActivity", "✅ Successfully preloaded ${games.size} games")
-                    },
-                    onError = { exception ->
-                        android.util.Log.e("MainActivity", "❌ Failed to preload games: ${exception.message}", exception)
-                    }
-                )
-            }
-        } else {
-            // Clear cache when user logs out
-            gameCacheManager.clearCache()
+            com.project.swipetoplay.data.error.ErrorLogger.logDebug("MainActivity", "User authenticated, onboarding status: $hasCompletedOnboarding")
         }
     }
     
-    LaunchedEffect(isAuthenticated) {
+    LaunchedEffect(isAuthenticated, hasCompletedOnboarding) {
         if (isAuthenticated && currentScreen == "login") {
-            currentScreen = "home"
+            currentScreen = if (hasCompletedOnboarding) "home" else "onboarding"
             navigationHistory.clear()
-            navigationHistory.add("home")
+            navigationHistory.add(if (hasCompletedOnboarding) "home" else "onboarding")
         }
     }
     
@@ -125,15 +97,14 @@ fun AppContent() {
         isNavigatingBack = false
     }
     
-    BackHandler(enabled = isAuthenticated && currentScreen != "login") {
+    BackHandler(enabled = isAuthenticated && currentScreen != "login" && currentScreen != "onboarding") {
         isNavigatingBack = true
-        when {
-            currentScreen == "gameDetail" -> {
+        when (currentScreen) {
+            "gameDetail" -> {
                 currentScreen = "home"
                 selectedGame = null
             }
-            currentScreen == "preferences" || 
-            currentScreen == "notifications" -> {
+            "preferences", "notifications" -> {
                 currentScreen = "profile"
             }
             else -> {
@@ -175,6 +146,18 @@ fun AppContent() {
                             onNavigateToHome = { currentScreen = "home" }
                         )
                     }
+                    isAuthenticated && !hasCompletedOnboarding && currentScreen == "onboarding" -> {
+                        OnboardingScreen(
+                            onComplete = {
+                                onboardingManager.completeOnboarding()
+                                hasCompletedOnboarding = true
+                                currentScreen = "home"
+                                navigationHistory.clear()
+                                navigationHistory.add("home")
+                                com.project.swipetoplay.data.error.ErrorLogger.logDebug("MainActivity", "Onboarding completed, navigating to home")
+                            }
+                        )
+                    }
                     currentScreen == "gameDetail" && selectedGame != null -> {
                         GameDetailScreen(
                             gameId = selectedGame!!.id.toIntOrNull() ?: 0,
@@ -190,8 +173,7 @@ fun AppContent() {
                                 onNavigateToDetails = { game ->
                                     selectedGame = game
                                     currentScreen = "gameDetail"
-                                },
-                                gameCacheManager = gameCacheManager
+                                }
                             )
                             "profile" -> ProfileScreen(
                                 user = uiState.user,
@@ -212,8 +194,7 @@ fun AppContent() {
                                 onNavigateToDetails = { game ->
                                     selectedGame = game
                                     currentScreen = "gameDetail"
-                                },
-                                gameCacheManager = gameCacheManager
+                                }
                             )
                         }
                     }
@@ -225,14 +206,14 @@ fun AppContent() {
                 onConfirm = {
                     showLogoutDialog = false
                     loginViewModel.signOut()
-                    onboardingManager.resetOnboarding()
-                    hasCompletedOnboarding = false
+                    
+                    hasCompletedOnboarding = onboardingManager.hasCompletedOnboarding()
                     currentScreen = "login"
                 },
                 onDismiss = { showLogoutDialog = false }
             )
 
-            if (isAuthenticated && currentScreen != "login" && currentScreen != "gameDetail") {
+            if (isAuthenticated && currentScreen != "login" && currentScreen != "gameDetail" && currentScreen != "onboarding") {
                 BottomBar(
                     currentScreen = currentScreen,
                     onProfileClick = { currentScreen = "profile" },
@@ -249,7 +230,7 @@ fun AppContent() {
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = if (isAuthenticated && currentScreen != "login" && currentScreen != "gameDetail") 89.dp else 16.dp)
+                .padding(bottom = if (isAuthenticated && currentScreen != "login" && currentScreen != "gameDetail" && currentScreen != "onboarding") 89.dp else 16.dp)
         ) { snackbarData ->
             Snackbar(
                 snackbarData = snackbarData,

@@ -2,7 +2,6 @@ package com.project.swipetoplay.data.auth
 
 import android.content.Context
 import android.util.Base64
-import android.util.Log
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -21,6 +20,8 @@ import com.project.swipetoplay.data.remote.dto.LoginRequest
 import com.project.swipetoplay.data.auth.TokenManager
 import com.project.swipetoplay.domain.model.AuthResult
 import com.project.swipetoplay.domain.model.GoogleUser
+import com.project.swipetoplay.data.error.ErrorLogger
+import com.project.swipetoplay.data.error.ErrorHandler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,11 +43,10 @@ class GoogleAuthManager(private val context: Context) {
     private val tokenManager: TokenManager by lazy {
         val manager = RetrofitClient.getTokenManager()
         if (manager == null) {
-            android.util.Log.e("GoogleAuthManager", "❌ WARNING: RetrofitClient not initialized yet!")
-            android.util.Log.e("GoogleAuthManager", "❌ Creating fallback TokenManager - this may cause token sync issues!")
+            ErrorLogger.logWarning("GoogleAuthManager", "RetrofitClient not initialized yet, creating fallback TokenManager")
             TokenManager(context)
         } else {
-            android.util.Log.d("GoogleAuthManager", "✅ Using shared TokenManager from RetrofitClient")
+            ErrorLogger.logDebug("GoogleAuthManager", "Using shared TokenManager from RetrofitClient")
             manager
         }
     }
@@ -65,8 +65,8 @@ class GoogleAuthManager(private val context: Context) {
      */
     suspend fun signInWithGoogle(): AuthResult {
         return try {
-                Log.d("GoogleAuth", "Starting Google Sign-In flow...")
-            Log.d("GoogleAuth", "Web Client ID configured: ${BuildConfig.WEB_CLIENT_ID.take(20)}...")
+            ErrorLogger.logDebug("GoogleAuth", "Starting Google Sign-In flow")
+            ErrorLogger.logDebug("GoogleAuth", "Web Client ID configured: ${BuildConfig.WEB_CLIENT_ID.take(20)}...")
 
             val googleIdOption: GetGoogleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(true)
@@ -78,38 +78,34 @@ class GoogleAuthManager(private val context: Context) {
                 .build()
 
             try {
-                Log.d("GoogleAuth", "Attempting to get existing credentials...")
+                ErrorLogger.logDebug("GoogleAuth", "Attempting to get existing credentials")
                 val result = credentialManager.getCredential(
                     request = request,
                     context = context,
                 )
                 handleSignIn(result)
             } catch (e: NoCredentialException) {
-                Log.d("GoogleAuth", "No existing credentials found, showing account picker...")
+                ErrorLogger.logDebug("GoogleAuth", "No existing credentials found, showing account picker")
                 signInWithGoogleNewUser()
             }
         } catch (e: GetCredentialCancellationException) {
-            Log.w("GoogleAuth", "Sign-in was cancelled by user")
-            Log.w("GoogleAuth", "Cancellation details: ${e::class.simpleName} - ${e.message}")
-            Log.w("GoogleAuth", "Error type: ${e.type}")
+            ErrorLogger.logWarning("GoogleAuth", "Sign-in was cancelled by user", e)
             if (e.errorMessage != null) {
-                Log.w("GoogleAuth", "Error message: ${e.errorMessage}")
+                ErrorLogger.logWarning("GoogleAuth", "Cancellation error message: ${e.errorMessage}")
             }
             AuthResult.Cancelled
         } catch (e: GetCredentialException) {
-            Log.e("GoogleAuth", "Authentication failed: ${e.message}", e)
-            Log.e("GoogleAuth", "Exception type: ${e::class.simpleName}")
-            Log.e("GoogleAuth", "Error type: ${e.type}")
+            ErrorLogger.logError("GoogleAuth", "Authentication failed: ${e.message}", e)
             if (e.errorMessage != null) {
-                Log.e("GoogleAuth", "Detailed error: ${e.errorMessage}")
+                ErrorLogger.logError("GoogleAuth", "Detailed error: ${e.errorMessage}")
             }
-            AuthResult.Error(e.message ?: "Authentication failed")
+            AuthResult.Error(ErrorHandler.getUserFriendlyMessage(e))
         } catch (e: CancellationException) {
-            Log.w("GoogleAuth", "Sign-in was cancelled")
+            ErrorLogger.logWarning("GoogleAuth", "Sign-in was cancelled", e)
             AuthResult.Cancelled
         } catch (e: Exception) {
-            Log.e("GoogleAuth", "Unknown error occurred: ${e.message}", e)
-            AuthResult.Error(e.message ?: "Unknown error occurred")
+            ErrorLogger.logError("GoogleAuth", "Unknown error occurred: ${e.message}", e)
+            AuthResult.Error(ErrorHandler.getUserFriendlyMessage(e))
         }
     }
 
@@ -120,7 +116,7 @@ class GoogleAuthManager(private val context: Context) {
      */
     private suspend fun signInWithGoogleNewUser(): AuthResult {
         return try {
-            Log.d("GoogleAuth", "Starting new user sign-in flow...")
+            ErrorLogger.logDebug("GoogleAuth", "Starting new user sign-in flow")
 
             val signInWithGoogleOption: GetSignInWithGoogleOption = GetSignInWithGoogleOption.Builder(BuildConfig.WEB_CLIENT_ID)
                 .build()
@@ -135,27 +131,23 @@ class GoogleAuthManager(private val context: Context) {
             )
             handleSignIn(result)
         } catch (e: GetCredentialCancellationException) {
-            Log.w("GoogleAuth", "New user sign-in was cancelled")
-            Log.w("GoogleAuth", "Cancellation details: ${e::class.simpleName} - ${e.message}")
-            Log.w("GoogleAuth", "Error type: ${e.type}")
+            ErrorLogger.logWarning("GoogleAuth", "New user sign-in was cancelled", e)
             if (e.errorMessage != null) {
-                Log.w("GoogleAuth", "Error message: ${e.errorMessage}")
+                ErrorLogger.logWarning("GoogleAuth", "Cancellation error message: ${e.errorMessage}")
             }
             AuthResult.Cancelled
         } catch (e: GetCredentialException) {
-            Log.e("GoogleAuth", "New user authentication failed: ${e.message}", e)
-            Log.e("GoogleAuth", "Exception type: ${e::class.simpleName}")
-            Log.e("GoogleAuth", "Error type: ${e.type}")
+            ErrorLogger.logError("GoogleAuth", "New user authentication failed: ${e.message}", e)
             if (e.errorMessage != null) {
-                Log.e("GoogleAuth", "Detailed error: ${e.errorMessage}")
+                ErrorLogger.logError("GoogleAuth", "Detailed error: ${e.errorMessage}")
             }
-            AuthResult.Error(e.message ?: "Authentication failed")
+            AuthResult.Error(ErrorHandler.getUserFriendlyMessage(e))
         } catch (e: CancellationException) {
-            Log.w("GoogleAuth", "New user sign-in was cancelled")
+            ErrorLogger.logWarning("GoogleAuth", "New user sign-in was cancelled", e)
             AuthResult.Cancelled
         } catch (e: Exception) {
-            Log.e("GoogleAuth", "Unknown error in new user flow: ${e.message}", e)
-            AuthResult.Error(e.message ?: "Unknown error occurred")
+            ErrorLogger.logError("GoogleAuth", "Unknown error in new user flow: ${e.message}", e)
+            AuthResult.Error(ErrorHandler.getUserFriendlyMessage(e))
         }
     }
 
@@ -178,25 +170,16 @@ class GoogleAuthManager(private val context: Context) {
                 val isNewToken = compareTokens(idToken)
                 val tokenInfo = getTokenExpirationInfo(idToken)
 
-                Log.d("GoogleAuth", "==========================================================")
-                Log.d("GoogleAuth", "=== Google Sign-In Success (Login #$loginCount) ===")
-                Log.d("GoogleAuth", "==========================================================")
-                Log.d("GoogleAuth", "✅ NEW TOKEN GENERATED: ${if (isNewToken) "YES" else "NO (Same as previous)"}")
-                Log.d("GoogleAuth", "📅 Token Info: $tokenInfo")
-                Log.d("GoogleAuth", "")
-                Log.d("GoogleAuth", "👤 User ID: ${googleIdTokenCredential.id}")
-                Log.d("GoogleAuth", "📧 User Email: ${googleIdTokenCredential.id}")
-                Log.d("GoogleAuth", "📝 Display Name: ${googleIdTokenCredential.displayName}")
-                Log.d("GoogleAuth", "🖼️  Profile Picture: ${googleIdTokenCredential.profilePictureUri}")
-                Log.d("GoogleAuth", "")
-                Log.d("GoogleAuth", "📋 ========== COPY ID TOKEN BELOW ==========")
-                Log.d("GoogleAuth", idToken)
-                Log.d("GoogleAuth", "📋 ========== COPY ID TOKEN ABOVE ==========")
-                Log.d("GoogleAuth", "")
-                Log.d("GoogleAuth", "🔑 Token Preview (first 50): ${idToken.take(50)}...")
-                Log.d("GoogleAuth", "🔑 Token Preview (last 20): ...${idToken.takeLast(20)}")
-                Log.d("GoogleAuth", "🔑 Token Length: ${idToken.length} characters")
-                Log.d("GoogleAuth", "==========================================================")
+                ErrorLogger.logDebug("GoogleAuth", "Google Sign-In Success (Login #$loginCount)")
+                ErrorLogger.logDebug("GoogleAuth", "NEW TOKEN GENERATED: ${if (isNewToken) "YES" else "NO (Same as previous)"}")
+                ErrorLogger.logDebug("GoogleAuth", "Token Info: $tokenInfo")
+                ErrorLogger.logDebug("GoogleAuth", "User ID: ${googleIdTokenCredential.id}")
+                ErrorLogger.logDebug("GoogleAuth", "User Email: ${googleIdTokenCredential.id}")
+                ErrorLogger.logDebug("GoogleAuth", "Display Name: ${googleIdTokenCredential.displayName}")
+                ErrorLogger.logDebug("GoogleAuth", "Profile Picture: ${googleIdTokenCredential.profilePictureUri}")
+                ErrorLogger.logDebug("GoogleAuth", "Token Preview (first 50): ${idToken.take(50)}...")
+                ErrorLogger.logDebug("GoogleAuth", "Token Preview (last 20): ...${idToken.takeLast(20)}")
+                ErrorLogger.logDebug("GoogleAuth", "Token Length: ${idToken.length} characters")
 
                 lastIdToken = idToken
 
@@ -209,15 +192,15 @@ class GoogleAuthManager(private val context: Context) {
 
                 AuthResult.Success(user)
             } else {
-                Log.e("GoogleAuth", "Invalid credential type: ${credential::class.simpleName}")
+                ErrorLogger.logError("GoogleAuth", "Invalid credential type: ${credential::class.simpleName}")
                 AuthResult.Error("Invalid credential type")
             }
         } catch (e: GoogleIdTokenParsingException) {
-            Log.e("GoogleAuth", "Failed to parse Google ID Token", e)
-            AuthResult.Error("Failed to parse Google ID Token: ${e.message}")
+            ErrorLogger.logError("GoogleAuth", "Failed to parse Google ID Token", e)
+            AuthResult.Error("Failed to process Google token")
         } catch (e: Exception) {
-            Log.e("GoogleAuth", "Failed to process credentials", e)
-            AuthResult.Error(e.message ?: "Failed to process credentials")
+            ErrorLogger.logError("GoogleAuth", "Failed to process credentials", e)
+            AuthResult.Error(ErrorHandler.getUserFriendlyMessage(e))
         }
     }
 
@@ -238,14 +221,14 @@ class GoogleAuthManager(private val context: Context) {
      */
     suspend fun signOut() {
         try {
-            Log.d("GoogleAuth", "Signing out user...")
+            ErrorLogger.logDebug("GoogleAuth", "Signing out user")
             credentialManager.clearCredentialState(
                 ClearCredentialStateRequest()
             )
             tokenManager.clearToken()
-            Log.d("GoogleAuth", "Sign-out successful")
+            ErrorLogger.logDebug("GoogleAuth", "Sign-out successful")
         } catch (e: Exception) {
-            Log.e("GoogleAuth", "Sign-out error: ${e.message}", e)
+            ErrorLogger.logError("GoogleAuth", "Sign-out error: ${e.message}", e)
         }
     }
 
@@ -312,30 +295,21 @@ class GoogleAuthManager(private val context: Context) {
      */
     private suspend fun sendTokenToBackendSyncSuspend(idToken: String): BackendValidationResult {
         return try {
-            Log.d("GoogleAuth", "")
-            Log.d("GoogleAuth", "🌐 ========== SENDING TO BACKEND ==========")
-            Log.d("GoogleAuth", "📍 Base URL: ${BuildConfig.API_BASE_URL}")
-            Log.d("GoogleAuth", "📍 Full Endpoint: ${BuildConfig.API_BASE_URL}api/v1/auth/login")
-            Log.d("GoogleAuth", "")
-            Log.d("GoogleAuth", "📤 Request Body:")
-            Log.d("GoogleAuth", "   {")
-            Log.d("GoogleAuth", "     \"id_token\": \"$idToken\"")
-            Log.d("GoogleAuth", "   }")
-            Log.d("GoogleAuth", "")
+            ErrorLogger.logDebug("GoogleAuth", "SENDING TO BACKEND")
+            ErrorLogger.logDebug("GoogleAuth", "Base URL: ${BuildConfig.API_BASE_URL}")
+            ErrorLogger.logDebug("GoogleAuth", "Full Endpoint: ${BuildConfig.API_BASE_URL}api/v1/auth/login")
 
             val request = LoginRequest(idToken = idToken)
             val response = RetrofitClient.authApiService.login(request)
 
             if (response.isSuccessful) {
                 val loginResponse = response.body()
-                Log.d("GoogleAuth", "")
-                Log.d("GoogleAuth", "✅ ========== BACKEND SUCCESS ==========")
-                Log.d("GoogleAuth", "📦 Response code: ${response.code()}")
-                Log.d("GoogleAuth", "🔑 Access Token: ${loginResponse?.data?.accessToken?.take(50)}...")
-                Log.d("GoogleAuth", "🏷️  Token Type: ${loginResponse?.data?.tokenType}")
-                Log.d("GoogleAuth", "👤 Backend User: ${loginResponse?.data?.user?.name} (${loginResponse?.data?.user?.email})")
-                Log.d("GoogleAuth", "💬 Message: ${loginResponse?.message}")
-                Log.d("GoogleAuth", "==========================================================")
+                ErrorLogger.logDebug("GoogleAuth", "BACKEND SUCCESS")
+                ErrorLogger.logDebug("GoogleAuth", "Response code: ${response.code()}")
+                ErrorLogger.logDebug("GoogleAuth", "Access Token: ${loginResponse?.data?.accessToken?.take(50)}...")
+                ErrorLogger.logDebug("GoogleAuth", "Token Type: ${loginResponse?.data?.tokenType}")
+                ErrorLogger.logDebug("GoogleAuth", "Backend User: ${loginResponse?.data?.user?.name} (${loginResponse?.data?.user?.email})")
+                ErrorLogger.logDebug("GoogleAuth", "Message: ${loginResponse?.message}")
                 
                 loginResponse?.data?.let { data ->
                     data.accessToken?.let { token ->
@@ -351,17 +325,17 @@ class GoogleAuthManager(private val context: Context) {
                             tokenType = normalizedTokenType,
                             expiresIn = data.expiresIn
                         )
-                        Log.d("GoogleAuth", "💾 JWT token saved successfully")
-                        Log.d("GoogleAuth", "📝 Token type: $normalizedTokenType")
-                        Log.d("GoogleAuth", "📝 Token length: ${token.length}")
+                        ErrorLogger.logDebug("GoogleAuth", "JWT token saved successfully")
+                        ErrorLogger.logDebug("GoogleAuth", "Token type: $normalizedTokenType")
+                        ErrorLogger.logDebug("GoogleAuth", "Token length: ${token.length}")
                         
                         val savedToken = tokenManager.getAccessToken()
                         val savedType = tokenManager.getTokenType()
                         if (savedToken != null) {
-                            Log.d("GoogleAuth", "✅ Token verification: Saved successfully (length: ${savedToken.length}, type: $savedType)")
-                            Log.d("GoogleAuth", "📋 Authorization header: ${tokenManager.getAuthorizationHeader()?.take(30)}...")
+                            ErrorLogger.logDebug("GoogleAuth", "Token verification: Saved successfully (length: ${savedToken.length}, type: $savedType)")
+                            ErrorLogger.logDebug("GoogleAuth", "Authorization header: ${tokenManager.getAuthorizationHeader()?.take(30)}...")
                         } else {
-                            Log.e("GoogleAuth", "❌ Token verification: Failed to save token!")
+                            ErrorLogger.logError("GoogleAuth", "Token verification: Failed to save token")
                         }
                     }
                 }
@@ -369,27 +343,17 @@ class GoogleAuthManager(private val context: Context) {
                 BackendValidationResult.Success
             } else {
                 val errorBody = response.errorBody()?.string()
-                Log.e("GoogleAuth", "")
-                Log.e("GoogleAuth", "❌ ========== BACKEND FAILED ==========")
-                Log.e("GoogleAuth", "📦 Response code: ${response.code()}")
-                Log.e("GoogleAuth", "📝 Error body: $errorBody")
-                Log.e("GoogleAuth", "========================================")
-                BackendValidationResult.Error("Backend validation failed: ${response.code()}")
+                ErrorLogger.logError("GoogleAuth", "BACKEND FAILED")
+                ErrorLogger.logError("GoogleAuth", "Response code: ${response.code()}")
+                ErrorLogger.logError("GoogleAuth", "Error body: $errorBody")
+                BackendValidationResult.Error(ErrorHandler.getUserFriendlyMessage(response.code(), errorBody))
             }
         } catch (e: Exception) {
-            Log.e("GoogleAuth", "")
-            Log.e("GoogleAuth", "❌ ========== CONNECTION ERROR ==========")
-            Log.e("GoogleAuth", "🔍 Exception type: ${e::class.simpleName}")
-            Log.e("GoogleAuth", "💬 Error message: ${e.message}")
-            Log.e("GoogleAuth", "")
-            Log.e("GoogleAuth", "🔧 Troubleshooting:")
-            Log.e("GoogleAuth", "   1. Backend running? python manage.py runserver 0.0.0.0:8000")
-            Log.e("GoogleAuth", "   2. Same WiFi network?")
-            Log.e("GoogleAuth", "   3. Firewall blocking port 8000?")
-            Log.e("GoogleAuth", "   4. API_BASE_URL correct in local.properties?")
-            Log.e("GoogleAuth", "      Current: ${BuildConfig.API_BASE_URL}")
-            Log.e("GoogleAuth", "=========================================")
-            BackendValidationResult.Error("Connection failed: ${e.message}")
+            ErrorLogger.logError("GoogleAuth", "CONNECTION ERROR", e)
+            ErrorLogger.logError("GoogleAuth", "Exception type: ${e::class.simpleName}")
+            ErrorLogger.logError("GoogleAuth", "Error message: ${e.message}")
+            ErrorLogger.logError("GoogleAuth", "Troubleshooting: Backend running? Same WiFi network? Firewall blocking port? API_BASE_URL correct? Current: ${BuildConfig.API_BASE_URL}")
+            BackendValidationResult.Error(ErrorHandler.getUserFriendlyMessage(e))
         }
     }
 
@@ -398,55 +362,32 @@ class GoogleAuthManager(private val context: Context) {
      */
     private suspend fun sendTokenToBackend(idToken: String) {
         try {
-            Log.d("GoogleAuth", "")
-            Log.d("GoogleAuth", "🌐 ========== SENDING TO BACKEND ==========")
-            Log.d("GoogleAuth", "📍 Base URL: ${BuildConfig.API_BASE_URL}")
-            Log.d("GoogleAuth", "📍 Full Endpoint: ${BuildConfig.API_BASE_URL}api/v1/auth/login")
-            Log.d("GoogleAuth", "")
-            Log.d("GoogleAuth", "📤 Request Body:")
-            Log.d("GoogleAuth", "   {")
-            Log.d("GoogleAuth", "     \"id_token\": \"$idToken\"")
-            Log.d("GoogleAuth", "   }")
-            Log.d("GoogleAuth", "")
-            Log.d("GoogleAuth", "📋 ========== COPY TOKEN FOR MANUAL TEST ==========")
-            Log.d("GoogleAuth", idToken)
-            Log.d("GoogleAuth", "📋 ===============================================")
-            Log.d("GoogleAuth", "")
+            ErrorLogger.logDebug("GoogleAuth", "SENDING TO BACKEND")
+            ErrorLogger.logDebug("GoogleAuth", "Base URL: ${BuildConfig.API_BASE_URL}")
+            ErrorLogger.logDebug("GoogleAuth", "Full Endpoint: ${BuildConfig.API_BASE_URL}api/v1/auth/login")
 
             val request = LoginRequest(idToken = idToken)
             val response = RetrofitClient.authApiService.login(request)
 
             if (response.isSuccessful) {
                 val loginResponse = response.body()
-                Log.d("GoogleAuth", "")
-                Log.d("GoogleAuth", "✅ ========== BACKEND SUCCESS ==========")
-                Log.d("GoogleAuth", "📦 Response code: ${response.code()}")
-                Log.d("GoogleAuth", "🔑 Access Token: ${loginResponse?.data?.accessToken?.take(50)}...")
-                Log.d("GoogleAuth", "🏷️  Token Type: ${loginResponse?.data?.tokenType}")
-                Log.d("GoogleAuth", "👤 Backend User: ${loginResponse?.data?.user?.name} (${loginResponse?.data?.user?.email})")
-                Log.d("GoogleAuth", "💬 Message: ${loginResponse?.message}")
-                Log.d("GoogleAuth", "==========================================================")
+                ErrorLogger.logDebug("GoogleAuth", "BACKEND SUCCESS")
+                ErrorLogger.logDebug("GoogleAuth", "Response code: ${response.code()}")
+                ErrorLogger.logDebug("GoogleAuth", "Access Token: ${loginResponse?.data?.accessToken?.take(50)}...")
+                ErrorLogger.logDebug("GoogleAuth", "Token Type: ${loginResponse?.data?.tokenType}")
+                ErrorLogger.logDebug("GoogleAuth", "Backend User: ${loginResponse?.data?.user?.name} (${loginResponse?.data?.user?.email})")
+                ErrorLogger.logDebug("GoogleAuth", "Message: ${loginResponse?.message}")
             } else {
                 val errorBody = response.errorBody()?.string()
-                Log.e("GoogleAuth", "")
-                Log.e("GoogleAuth", "❌ ========== BACKEND FAILED ==========")
-                Log.e("GoogleAuth", "📦 Response code: ${response.code()}")
-                Log.e("GoogleAuth", "📝 Error body: $errorBody")
-                Log.e("GoogleAuth", "========================================")
+                ErrorLogger.logError("GoogleAuth", "BACKEND FAILED")
+                ErrorLogger.logError("GoogleAuth", "Response code: ${response.code()}")
+                ErrorLogger.logError("GoogleAuth", "Error body: $errorBody")
             }
         } catch (e: Exception) {
-            Log.e("GoogleAuth", "")
-            Log.e("GoogleAuth", "❌ ========== CONNECTION ERROR ==========")
-            Log.e("GoogleAuth", "🔍 Exception type: ${e::class.simpleName}")
-            Log.e("GoogleAuth", "💬 Error message: ${e.message}")
-            Log.e("GoogleAuth", "")
-            Log.e("GoogleAuth", "🔧 Troubleshooting:")
-            Log.e("GoogleAuth", "   1. Backend running? python manage.py runserver 0.0.0.0:8000")
-            Log.e("GoogleAuth", "   2. Same WiFi network?")
-            Log.e("GoogleAuth", "   3. Firewall blocking port 8000?")
-            Log.e("GoogleAuth", "   4. API_BASE_URL correct in local.properties?")
-            Log.e("GoogleAuth", "      Current: ${BuildConfig.API_BASE_URL}")
-            Log.e("GoogleAuth", "==========================================")
+            ErrorLogger.logError("GoogleAuth", "CONNECTION ERROR", e)
+            ErrorLogger.logError("GoogleAuth", "Exception type: ${e::class.simpleName}")
+            ErrorLogger.logError("GoogleAuth", "Error message: ${e.message}")
+            ErrorLogger.logError("GoogleAuth", "Troubleshooting: Backend running? Same WiFi network? Firewall blocking port? API_BASE_URL correct? Current: ${BuildConfig.API_BASE_URL}")
         }
     }
 }
