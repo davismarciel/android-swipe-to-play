@@ -5,6 +5,8 @@ import com.project.swipetoplay.data.remote.api.RetrofitClient
 import com.project.swipetoplay.data.remote.dto.ApiResponse
 import com.project.swipetoplay.data.remote.dto.GameResponse
 import com.project.swipetoplay.data.remote.dto.RecommendationResponse
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 
 /**
  * Repository for recommendation-related data operations
@@ -15,36 +17,25 @@ class RecommendationRepository {
     /**
      * Get personalized game recommendations
      */
-    suspend fun getRecommendations(limit: Int? = null): Result<List<GameResponse>> {
+    suspend fun getRecommendations(limit: Int? = null): Result<RecommendationResponse> {
         return try {
             val response = apiService.getRecommendations(limit = limit)
-            
+
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body?.success == true && body.data != null) {
-                    Result.success(body.data.recommendations)
+                    Result.success(body.data)
                 } else {
                     Result.failure(Exception(body?.message ?: "Failed to fetch recommendations"))
                 }
             } else {
-                when (response.code()) {
-                    401 -> {
-                        android.util.Log.w("RecommendationRepository", "⚠️ Unauthenticated - Token invalid or expired")
-                        Result.failure(Exception("Token invalid or expired. Please login again."))
-                    }
-                    500 -> {
-                        android.util.Log.e("RecommendationRepository", "❌ Server error: ${response.message()}")
-                        Result.failure(Exception("Internal server error. Please try again later."))
-                    }
-                    else -> {
-                        android.util.Log.w("RecommendationRepository", "⚠️ HTTP ${response.code()}: ${response.message()}")
-                        Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
-                    }
-                }
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("RecommendationRepository", "Failed to fetch recommendations: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            android.util.Log.e("RecommendationRepository", "❌ Exception: ${e.message}", e)
-            Result.failure(e)
+            ErrorLogger.logError("RecommendationRepository", "Exception while fetching recommendations: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -63,10 +54,13 @@ class RecommendationRepository {
                     Result.failure(Exception(body?.message ?: "Failed to fetch similar games"))
                 }
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("RecommendationRepository", "Failed to fetch similar games: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ErrorLogger.logError("RecommendationRepository", "Exception while fetching similar games: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 
@@ -85,10 +79,13 @@ class RecommendationRepository {
                     Result.failure(Exception(body?.message ?: "Failed to fetch stats"))
                 }
             } else {
-                Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(response.code(), response.message())
+                ErrorLogger.logError("RecommendationRepository", "Failed to fetch recommendation stats: HTTP ${response.code()}", null)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ErrorLogger.logError("RecommendationRepository", "Exception while fetching recommendation stats: ${e.message}", e)
+            Result.failure(Exception(ErrorHandler.getUserFriendlyMessage(e)))
         }
     }
 }

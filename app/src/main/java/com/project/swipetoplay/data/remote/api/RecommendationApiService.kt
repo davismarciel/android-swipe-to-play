@@ -14,7 +14,7 @@ interface RecommendationApiService {
 
     @GET("api/recommendations")
     suspend fun getRecommendations(
-        @Query("limit") limit: Int? = null
+        @Query("limit") limit: Int? = 20
     ): Response<ApiResponse<RecommendationResponse>>
 
     @GET("api/recommendations/similar/{gameId}")
