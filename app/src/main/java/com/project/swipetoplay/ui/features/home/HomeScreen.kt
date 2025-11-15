@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -29,9 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.project.swipetoplay.data.local.GameLimitManager
 import com.project.swipetoplay.data.repository.InteractionRepository
 import com.project.swipetoplay.data.repository.RecommendationRepository
 import com.project.swipetoplay.ui.features.game.Game
@@ -42,11 +41,11 @@ import com.project.swipetoplay.ui.components.TopBar
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 
-private const val ENTRANCE_ANIMATION_DURATION_MS = 800L
-private const val ENTRANCE_DELAY_MS = 50L
+private const val ENTRANCE_ANIMATION_DURATION_MS = 650L
+private const val ENTRANCE_DELAY_MS = 20L
 private const val FLIP_ROTATION_DEGREES = 90f
-private const val SPRING_DAMPING = Spring.DampingRatioNoBouncy
-private const val SPRING_STIFFNESS = Spring.StiffnessMedium
+private const val SPRING_DAMPING = Spring.DampingRatioMediumBouncy
+private const val SPRING_STIFFNESS = Spring.StiffnessMediumLow
 
 private const val TAP_ANIMATION_DURATION_MS = 200
 private const val EXIT_ANIMATION_DURATION_MS = 300
@@ -58,13 +57,10 @@ private const val TAP_TRANSLATION_Z = -60f
 fun HomeScreen(
     modifier: Modifier = Modifier,
     onNavigateToDetails: (Game) -> Unit = {},
-    gameCacheManager: com.project.swipetoplay.data.local.GameCacheManager? = null,
     viewModel: HomeViewModel = viewModel(
         factory = HomeViewModelFactory(
             recommendationRepository = RecommendationRepository(),
-            interactionRepository = InteractionRepository(),
-            gameLimitManager = GameLimitManager(LocalContext.current),
-            gameCacheManager = gameCacheManager
+            interactionRepository = InteractionRepository()
         )
     )
 ) {
@@ -81,17 +77,17 @@ fun HomeScreen(
 
             val tokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
             if (tokenManager?.isAuthenticated() == true) {
-                android.util.Log.d("HomeScreen", "✅ Token verified, loading recommendations")
+                com.project.swipetoplay.data.error.ErrorLogger.logDebug("HomeScreen", "Token verified, loading recommendations")
                 if (uiState.games.isEmpty() && !uiState.isLoading) {
                     hasAttemptedLoad = true
                     viewModel.loadRecommendations()
                 }
             } else {
-                android.util.Log.w("HomeScreen", "⚠️ No token available yet, will retry...")
+                com.project.swipetoplay.data.error.ErrorLogger.logWarning("HomeScreen", "No token available yet, will retry", null)
                 delay(500)
                 val retryTokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
                 if (retryTokenManager?.isAuthenticated() == true && uiState.games.isEmpty() && !uiState.isLoading) {
-                    android.util.Log.d("HomeScreen", "✅ Token verified on retry, loading recommendations")
+                    com.project.swipetoplay.data.error.ErrorLogger.logDebug("HomeScreen", "Token verified on retry, loading recommendations")
                     hasAttemptedLoad = true
                     viewModel.loadRecommendations()
                 }
@@ -103,7 +99,7 @@ fun HomeScreen(
         if (uiState.games.isEmpty() && !uiState.isLoading && !hasAttemptedLoad) {
             val tokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
             if (tokenManager?.isAuthenticated() == true) {
-                android.util.Log.d("HomeScreen", "🔄 Games list empty, loading recommendations")
+                com.project.swipetoplay.data.error.ErrorLogger.logDebug("HomeScreen", "Games list empty, loading recommendations")
                 hasAttemptedLoad = true
                 viewModel.loadRecommendations()
             }
@@ -264,12 +260,21 @@ fun HomeScreen(
                                                 textAlign = TextAlign.Center
                                             )
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                text = "Remaining today: ${uiState.remainingGames}",
-                                                color = Color.White.copy(alpha = 0.7f),
-                                                fontSize = 16.sp,
-                                                textAlign = TextAlign.Center
-                                            )
+                                            if (uiState.remainingGames > 0) {
+                                                Text(
+                                                    text = "Remaining today: ${uiState.remainingGames}",
+                                                    color = Color.White.copy(alpha = 0.7f),
+                                                    fontSize = 16.sp,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "Check back later for more recommendations",
+                                                    color = Color.White.copy(alpha = 0.7f),
+                                                    fontSize = 16.sp,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -278,7 +283,7 @@ fun HomeScreen(
                     }
                 }
 
-                if (!uiState.hasReachedDailyLimit && !uiState.isLoading) {
+                if (!uiState.hasReachedDailyLimit && !uiState.isLoading && uiState.remainingGames > 0 && uiState.games.isNotEmpty()) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -442,7 +447,8 @@ private fun SwipeableGameCard(
     var isTapPressed by remember(key) { mutableStateOf(false) }
 
     var entranceRotationY by remember(key) { mutableFloatStateOf(180f) }
-    var entranceScale by remember(key) { mutableFloatStateOf(1.005f) }
+    var entranceScale by remember(key) { mutableFloatStateOf(0.88f) }
+    var entranceTranslationZ by remember(key) { mutableFloatStateOf(-150f) }
     var clickScale by remember(key) { mutableFloatStateOf(1f) }
     var clickAlpha by remember(key) { mutableFloatStateOf(1f) }
     var clickTranslationZ by remember(key) { mutableFloatStateOf(0f) }
@@ -458,7 +464,8 @@ private fun SwipeableGameCard(
         isTapPressed = false
 
         entranceRotationY = 180f
-        entranceScale = 1.005f
+        entranceScale = 0.88f
+        entranceTranslationZ = -150f
         clickScale = 1f
         clickAlpha = 1f
         clickTranslationZ = 0f
@@ -468,8 +475,9 @@ private fun SwipeableGameCard(
 
         entranceRotationY = 0f
         entranceScale = 1f
+        entranceTranslationZ = 0f
 
-        delay(ENTRANCE_ANIMATION_DURATION_MS / 2)
+        delay(ENTRANCE_ANIMATION_DURATION_MS)
         isAnimatingIn = false
     }
 
@@ -550,22 +558,34 @@ private fun SwipeableGameCard(
         label = "animatedOffsetY"
     )
 
+    // Smooth easing for card flip - starts fast, ends smoothly with subtle overshoot
+    val flipEasing = CubicBezierEasing(0.34f, 1.2f, 0.64f, 1f)
+    
     val animatedEntranceRotationY by animateFloatAsState(
         targetValue = entranceRotationY,
-        animationSpec = spring(
-            dampingRatio = SPRING_DAMPING,
-            stiffness = SPRING_STIFFNESS
+        animationSpec = tween(
+            durationMillis = ENTRANCE_ANIMATION_DURATION_MS.toInt(),
+            easing = flipEasing
         ),
         label = "animatedEntranceRotationY"
     )
 
     val animatedEntranceScale by animateFloatAsState(
         targetValue = entranceScale,
-        animationSpec = spring(
-            dampingRatio = SPRING_DAMPING,
-            stiffness = SPRING_STIFFNESS
+        animationSpec = tween(
+            durationMillis = ENTRANCE_ANIMATION_DURATION_MS.toInt(),
+            easing = flipEasing
         ),
         label = "animatedEntranceScale"
+    )
+
+    val animatedEntranceTranslationZ by animateFloatAsState(
+        targetValue = entranceTranslationZ,
+        animationSpec = tween(
+            durationMillis = ENTRANCE_ANIMATION_DURATION_MS.toInt(),
+            easing = flipEasing
+        ),
+        label = "animatedEntranceTranslationZ"
     )
 
     val rotationZ = if (!isAnimatingIn) {
@@ -598,8 +618,16 @@ private fun SwipeableGameCard(
     }
 
     val flipScaleX = if (abs(rotationY) > 0) {
-        val normalizedRotation = abs(rotationY) / 180f
-        0.85f + (1f - normalizedRotation) * 0.15f
+        // Create a more realistic 3D perspective effect during flip
+        // When card is edge-on (90°), scale should be minimal
+        // When card is facing viewer (0° or 180°), scale should be full
+        val angleRad = Math.toRadians(abs(rotationY).toDouble())
+        // Use sine for edge-on effect: sin(0°) = 0, sin(90°) = 1, sin(180°) = 0
+        // We want: scale = 1 when angle is 0° or 180°, scale = min when angle is 90°
+        // So: scale = 1 - (1 - minScale) * sin²(angle)
+        val sinValue = kotlin.math.sin(angleRad).toFloat()
+        val minScale = 0.25f // Minimum scale when completely edge-on
+        (1f - (1f - minScale) * sinValue * sinValue).coerceIn(minScale, 1f)
     } else {
         1f
     }
@@ -610,8 +638,12 @@ private fun SwipeableGameCard(
             (1f - (abs(animatedOffsetX) / 1800f)).coerceIn(0f, 1f)
         }
         isAnimatingIn -> {
-            val normalizedRotation = abs(animatedEntranceRotationY - 90f) / 90f
-            normalizedRotation.coerceIn(0.92f, 1f)
+            // During flip: more opaque when facing viewer (0° or 180°), less at 90° (edge-on)
+            val angleRad = Math.toRadians(animatedEntranceRotationY.toDouble())
+            // Use absolute value of cosine to get opacity based on viewing angle
+            val opacityFactor = kotlin.math.abs(kotlin.math.cos(angleRad)).toFloat()
+            // Start from 0.5 opacity at 180°, reach 1.0 at 0° for smoother transition
+            (0.5f + opacityFactor * 0.5f).coerceIn(0.5f, 1f)
         }
         else -> {
             (1f - (abs(animatedOffsetX) / 2000f)).coerceIn(0.85f, 1f)
@@ -624,10 +656,14 @@ private fun SwipeableGameCard(
         dragScale * flipScaleX * entranceScaleEffect
     }
 
-    val cameraDistance = if (isClicking) {
-        12f + (animatedClickTranslationZ / -8f)
-    } else {
-        12f
+    val cameraDistance = when {
+        isClicking -> 12f + (animatedClickTranslationZ / -8f)
+        isAnimatingIn -> {
+            // Increase camera distance during entrance for better depth effect
+            val depthFactor = (animatedEntranceTranslationZ / -150f).coerceIn(0f, 1f)
+            12f + (depthFactor * 6f)
+        }
+        else -> 12f
     }
 
     val shadowElevation = if (isClicking) {
