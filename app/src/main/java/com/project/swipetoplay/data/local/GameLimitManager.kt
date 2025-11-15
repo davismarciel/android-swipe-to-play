@@ -2,6 +2,7 @@ package com.project.swipetoplay.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.project.swipetoplay.data.error.ErrorLogger
 import java.util.Calendar
 
 /**
@@ -52,7 +53,7 @@ class GameLimitManager(private val context: Context) {
         val remaining = dailyLimit - currentCount
         val result = remaining.coerceAtLeast(0)
         
-        android.util.Log.d("GameLimitManager", "📊 Remaining games calculation: Limit=$dailyLimit, Count=$currentCount, Remaining=$result")
+        ErrorLogger.logDebug("GameLimitManager", "Remaining games calculation: Limit=$dailyLimit, Count=$currentCount, Remaining=$result")
         return result
     }
 
@@ -66,7 +67,7 @@ class GameLimitManager(private val context: Context) {
         val currentCount = getCurrentCount()
         
         if (currentCount >= getDailyLimit()) {
-            android.util.Log.w("GameLimitManager", "⚠️ Attempted to increment count but already at limit: $currentCount/${getDailyLimit()}")
+            ErrorLogger.logWarning("GameLimitManager", "Attempted to increment count but already at limit: $currentCount/${getDailyLimit()}", null)
             return
         }
         
@@ -75,7 +76,7 @@ class GameLimitManager(private val context: Context) {
             .putInt(KEY_GAME_COUNT, newCount)
             .apply()
         
-        android.util.Log.d("GameLimitManager", "✅ Count incremented (LIKE ONLY): $currentCount -> $newCount (Limit: ${getDailyLimit()}, Remaining: ${getDailyLimit() - newCount})")
+        ErrorLogger.logDebug("GameLimitManager", "Count incremented (LIKE ONLY): $currentCount -> $newCount (Limit: ${getDailyLimit()}, Remaining: ${getDailyLimit() - newCount})")
     }
 
     /**
