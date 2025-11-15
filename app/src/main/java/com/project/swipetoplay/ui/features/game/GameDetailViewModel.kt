@@ -1,10 +1,11 @@
 package com.project.swipetoplay.ui.features.game
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project.swipetoplay.data.remote.dto.GameResponse
 import com.project.swipetoplay.data.repository.GameRepository
+import com.project.swipetoplay.data.error.ErrorHandler
+import com.project.swipetoplay.data.error.ErrorLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,17 +39,7 @@ class GameDetailViewModel(
 
             result.fold(
                 onSuccess = { gameResponse ->
-                    Log.d("GameDetailViewModel", "=== GAME LOADED ===")
-                    Log.d("GameDetailViewModel", "Game: ${gameResponse.name}")
-                    Log.d("GameDetailViewModel", "Game ID: ${gameResponse.id}")
-                    Log.d("GameDetailViewModel", "Community Rating: ${gameResponse.communityRating}")
-                    gameResponse.communityRating?.let { rating ->
-                        Log.d("GameDetailViewModel", "  Toxicity: ${rating.toxicity}")
-                        Log.d("GameDetailViewModel", "  Bugs: ${rating.bugs}")
-                        Log.d("GameDetailViewModel", "  Microtransactions: ${rating.microtransactions}")
-                        Log.d("GameDetailViewModel", "  Optimization: ${rating.optimization}")
-                        Log.d("GameDetailViewModel", "  Cheaters: ${rating.cheaters}")
-                    }
+                    ErrorLogger.logDebug("GameDetailViewModel", "Game loaded: ${gameResponse.name} (ID: ${gameResponse.id})")
 
                     _uiState.value = _uiState.value.copy(
                         game = gameResponse,
@@ -57,9 +48,10 @@ class GameDetailViewModel(
                     )
                 },
                 onFailure = { exception ->
+                    ErrorLogger.logError("GameDetailViewModel", "Failed to load game details: ${exception.message}", exception)
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = exception.message ?: "Failed to load game details"
+                        error = ErrorHandler.getUserFriendlyMessage(exception)
                     )
                 }
             )

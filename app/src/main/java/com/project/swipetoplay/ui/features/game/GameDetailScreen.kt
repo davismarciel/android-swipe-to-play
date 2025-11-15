@@ -1,8 +1,10 @@
 package com.project.swipetoplay.ui.features.game
 
+import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,8 +13,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.*
@@ -31,8 +33,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import com.project.swipetoplay.R
 import com.project.swipetoplay.data.repository.GameRepository
 import com.project.swipetoplay.data.remote.dto.GameResponse
@@ -101,7 +105,7 @@ fun GameDetailScreen(
                             text = errorMessage,
                             color = Color.Red,
                             fontSize = 16.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                         Button(onClick = { viewModel.retry() }) {
@@ -110,15 +114,24 @@ fun GameDetailScreen(
                     }
                 }
                 gameData != null -> {
-                    GameDetailContent(
-                        game = gameData,
-                        onSteamClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, gameData.getSteamUrl().toUri())
-                            context.startActivity(intent)
-                        },
-                        context = context,
-                        onNavigateBack = onNavigateBack
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        GameDetailContent(
+                            game = gameData,
+                            context = context,
+                            onNavigateBack = onNavigateBack
+                        )
+
+                        SteamButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, gameData.getSteamUrl().toUri())
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(10.dp)
+
+                        )
+                    }
                 }
             }
         }
@@ -129,8 +142,7 @@ fun GameDetailScreen(
 @Composable
 private fun GameDetailContent(
     game: GameResponse,
-    onSteamClick: () -> Unit,
-    context: android.content.Context,
+    context: Context,
     onNavigateBack: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
@@ -216,6 +228,11 @@ private fun GameDetailContent(
                         lineHeight = 20.sp
                     )
                 }
+            }
+
+            // Simple review indicator after description
+            if (game.positiveRatio != null) {
+                ReviewIndicator(positiveRatio = game.positiveRatio)
             }
 
             val hasRatings = game.communityRating != null && (
@@ -333,88 +350,6 @@ private fun GameDetailContent(
                     }
                 }
             }
-
-            if (game.totalReviews != null && game.totalReviews > 0) {
-                ReviewsSection(
-                    positiveReviews = game.positiveReviews ?: 0,
-                    negativeReviews = game.negativeReviews ?: 0,
-                    positiveRatio = game.positiveRatio
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Surface(
-                onClick = onSteamClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = RoundedCornerShape(16.dp),
-                        ambientColor = Color(0xFF1b2838).copy(alpha = 0.3f),
-                        spotColor = Color(0xFF66c0f4).copy(alpha = 0.2f)
-                    ),
-                shape = RoundedCornerShape(16.dp),
-                tonalElevation = 0.dp
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFF1b2838),
-                                    Color(0xFF171a21),
-                                    Color(0xFF1b2838)
-                                )
-                            )
-                        )
-                        .padding(horizontal = 2.dp, vertical = 2.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFF2a475e).copy(alpha = 0.8f),
-                                    Color(0xFF1b2838).copy(alpha = 0.8f),
-                                    Color(0xFF2a475e).copy(alpha = 0.8f)
-                                )
-                            ),
-                            shape = RoundedCornerShape(14.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Steam logo - try to load vector drawable, fallback to icon if it fails
-                        androidx.compose.foundation.Image(
-                            painter = painterResource(id = R.drawable.ic_steam_logo),
-                            contentDescription = "Steam Logo",
-                            modifier = Modifier.size(28.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFF66c0f4))
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Text(
-                            text = "View on Steam",
-                            color = Color(0xFFc7d5e0),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.3.sp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Launch,
-                            contentDescription = null,
-                            tint = Color(0xFF66c0f4).copy(alpha = 0.8f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -422,7 +357,7 @@ private fun GameDetailContent(
 /**
  * Opens an image in fullscreen using an intent
  */
-private fun viewImageFullscreen(context: android.content.Context, imageUrl: String) {
+private fun viewImageFullscreen(context: Context, imageUrl: String) {
     try {
         val intent = Intent(Intent.ACTION_VIEW, imageUrl.toUri())
         context.startActivity(intent)
@@ -533,7 +468,7 @@ private fun RatingItem(
     value: Double?,
     color: Color,
     isReversed: Boolean = false,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null
+    icon: ImageVector? = null
 ) {
     if (value != null) {
         val percentage = (value * 100.0).coerceIn(0.0, 100.0)
@@ -695,7 +630,7 @@ private fun RatingHelpDialog(
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Surface(
                             modifier = Modifier.weight(1f),
@@ -710,13 +645,37 @@ private fun RatingHelpDialog(
                                 Text(
                                     text = "1.0 - 2.5",
                                     color = Color(0xFF4CAF50),
-                                    fontSize = 16.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = "Fewer problems",
                                     color = ProfileText.copy(alpha = 0.85f),
-                                    fontSize = 13.sp
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFF9800).copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.4f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "2.5 - 3.5",
+                                    color = Color(0xFFFF9800),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Moderate problems",
+                                    color = ProfileText.copy(alpha = 0.85f),
+                                    fontSize = 12.sp
                                 )
                             }
                         }
@@ -734,13 +693,13 @@ private fun RatingHelpDialog(
                                 Text(
                                     text = "3.5 - 5.0",
                                     color = Color(0xFFE53935),
-                                    fontSize = 16.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = "More problems",
                                     color = ProfileText.copy(alpha = 0.85f),
-                                    fontSize = 13.sp
+                                    fontSize = 12.sp
                                 )
                             }
                         }
@@ -806,7 +765,7 @@ private fun MetricInfoItem(
     name: String,
     description: String,
     color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: ImageVector
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -879,7 +838,7 @@ private fun MediaCarousel(
             color = ProfileText,
             modifier = Modifier.padding(bottom = 12.dp)
         )
-        androidx.compose.foundation.lazy.LazyRow(
+        LazyRow (
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(items.size) { index ->
@@ -940,60 +899,73 @@ private fun PlatformBadge(text: String) {
 }
 
 @Composable
-private fun ReviewsSection(
-    positiveReviews: Int,
-    negativeReviews: Int,
-    positiveRatio: Double?
+private fun SteamButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column {
-        Text(
-            text = "Steam Reviews",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = ProfileText,
-            modifier = Modifier.padding(bottom = 12.dp)
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier.size(56.dp),
+        shape = CircleShape,
+        containerColor = Color(0xFF1b2838),
+        contentColor = Color(0xFF66c0f4)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_steam_logo),
+            contentDescription = "View on Steam",
+            modifier = Modifier.size(28.dp),
+            colorFilter = ColorFilter.tint(Color(0xFF66c0f4))
         )
+    }
+}
+
+@Composable
+private fun ReviewIndicator(positiveRatio: Double) {
+    val isPositive = positiveRatio > 0.5
+    val percentage = (positiveRatio * 100).toInt()
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isPositive) 
+            Color(0xFF4CAF50).copy(alpha = 0.15f) 
+        else 
+            Color(0xFFE53935).copy(alpha = 0.15f),
+        border = BorderStroke(
+            1.dp, 
+            if (isPositive) 
+                Color(0xFF4CAF50).copy(alpha = 0.4f)
+            else 
+                Color(0xFFE53935).copy(alpha = 0.4f)
+        )
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Text(
+                text = if (isPositive) "😊" else "😞",
+                fontSize = 32.sp,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+            Column(
+                horizontalAlignment = Alignment.Start
+            ) {
                 Text(
-                    text = "$positiveReviews",
-                    fontSize = 24.sp,
+                    text = if (isPositive) "Mostly Positive" else "Mostly Negative",
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF4CAF50)
+                    color = if (isPositive) Color(0xFF4CAF50) else Color(0xFFE53935)
                 )
                 Text(
-                    text = "Positive",
-                    fontSize = 12.sp,
-                    color = ProfileText.copy(alpha = 0.7f)
-                )
-            }
-            Column {
-                Text(
-                    text = "$negativeReviews",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE53935)
-                )
-                Text(
-                    text = "Negative",
-                    fontSize = 12.sp,
-                    color = ProfileText.copy(alpha = 0.7f)
-                )
-            }
-            Column {
-                Text(
-                    text = positiveRatio?.let { String.format(Locale.getDefault(), "%.0f%%", it * 100) } ?: "N/A",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ProfileText
-                )
-                Text(
-                    text = "Approval Rate",
-                    fontSize = 12.sp,
-                    color = ProfileText.copy(alpha = 0.7f)
+                    text = "$percentage% positive reviews",
+                    fontSize = 14.sp,
+                    color = ProfileText.copy(alpha = 0.8f)
                 )
             }
         }
