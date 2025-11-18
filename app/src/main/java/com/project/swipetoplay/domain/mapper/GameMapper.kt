@@ -5,9 +5,7 @@ import com.project.swipetoplay.ui.features.game.Game
 import com.project.swipetoplay.ui.features.game.PlatformInfo
 import com.project.swipetoplay.ui.features.game.RequirementsInfo
 
-/**
- * Maps GameResponse from API to local Game model
- */
+
 object GameMapper {
     fun toGame(gameResponse: GameResponse): Game {
         val tags = mutableListOf<String>()
@@ -53,10 +51,7 @@ object GameMapper {
         return gameResponses.map { toGame(it) }
     }
 
-    /**
-     * Formats the release date string to a more readable format
-     * Expected input format: YYYY-MM-DD or YYYY-MM or YYYY
-     */
+    
     fun formatReleaseDate(dateString: String?, comingSoon: Boolean): String {
         if (comingSoon) {
             return "COMING SOON"
@@ -107,9 +102,7 @@ object GameMapper {
         }
     }
 
-    /**
-     * Returns the English month name
-     */
+    
     private fun getMonthName(month: Int): String {
         return when (month) {
             1 -> "January"
