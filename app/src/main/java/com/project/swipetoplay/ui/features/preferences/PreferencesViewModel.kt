@@ -41,10 +41,6 @@ data class PreferencesUiState(
     val subscriptionSelected: Boolean = false
 )
 
-/**
- * ViewModel for PreferencesScreen
- * Manages user preferences and integrates with backend API
- */
 class PreferencesViewModel(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val gameApiService: com.project.swipetoplay.data.remote.api.GameApiService = RetrofitClient.gameApiService
@@ -70,7 +66,24 @@ class PreferencesViewModel(
         val saved = savedState
         
         if (saved == null) {
-            _uiState.value = current.copy(hasUnsavedChanges = false)
+            val hasAnySelections = current.windowsSelected || 
+                    current.macSelected || 
+                    current.linuxSelected ||
+                    current.selectedGenres.isNotEmpty() ||
+                    current.selectedCategories.isNotEmpty() ||
+                    current.casualSelected ||
+                    current.competitiveSelected ||
+                    current.storyDrivenSelected ||
+                    current.freeToPlaySelected ||
+                    current.paidSelected ||
+                    current.subscriptionSelected
+            
+            if (hasAnySelections) {
+                _uiState.value = current.copy(hasUnsavedChanges = true)
+            } else {
+                savedState = current.copy(hasUnsavedChanges = false)
+                _uiState.value = current.copy(hasUnsavedChanges = false)
+            }
             return
         }
         
@@ -89,10 +102,6 @@ class PreferencesViewModel(
         _uiState.value = current.copy(hasUnsavedChanges = hasChanges)
     }
 
-    /**
-     * Load available genres and current user preferences
-     * Optimized: loads genres and preferences in parallel, skips categories
-     */
     private fun loadPreferencesData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -133,10 +142,6 @@ class PreferencesViewModel(
         }
     }
 
-    /**
-     * Load genres from backend and build name-to-ID mapping
-     * Uses cache to avoid unnecessary API calls
-     */
     private suspend fun loadGenres(): Result<List<GenreResponse>> {
         return try {
             ErrorLogger.logDebug("PreferencesViewModel", "Starting to load genres from API")
@@ -180,9 +185,6 @@ class PreferencesViewModel(
         }
     }
 
-    /**
-     * Load categories from backend and build name-to-ID mapping
-     */
     private suspend fun loadCategories(): Result<List<CategoryResponse>> {
         return try {
             val response = gameApiService.getCategories()
@@ -210,9 +212,6 @@ class PreferencesViewModel(
         }
     }
 
-    /**
-     * Load current user preferences from backend
-     */
     private suspend fun loadUserPreferences() {
         try {
             val result = userPreferenceRepository.getPreferences()
@@ -246,15 +245,17 @@ class PreferencesViewModel(
                 if (error.message?.contains("500") == true || error.message?.contains("Internal Server Error") == true) {
                     ErrorLogger.logError("PreferencesViewModel", "Server error loading preferences - user may not have preferences yet", error)
                 }
+                
+                val currentState = _uiState.value
+                savedState = currentState.copy(hasUnsavedChanges = false)
             }
         } catch (e: Exception) {
             ErrorLogger.logError("PreferencesViewModel", "Error loading user preferences", e)
+            val currentState = _uiState.value
+            savedState = currentState.copy(hasUnsavedChanges = false)
         }
     }
 
-    /**
-     * Toggle platform selection
-     */
     fun togglePlatform(platform: String) {
         when (platform.lowercase()) {
             "windows" -> _uiState.value = _uiState.value.copy(windowsSelected = !_uiState.value.windowsSelected)
@@ -264,9 +265,6 @@ class PreferencesViewModel(
         checkForUnsavedChanges()
     }
 
-    /**
-     * Toggle genre selection by name (UI tag)
-     */
     fun toggleGenre(genreName: String) {
         val genreId = genreNameToId[genreName.lowercase()]
         if (genreId != null) {
@@ -283,17 +281,11 @@ class PreferencesViewModel(
         }
     }
 
-    /**
-     * Check if genre is selected by name
-     */
     fun isGenreSelected(genreName: String): Boolean {
         val genreId = genreNameToId[genreName.lowercase()]
         return genreId != null && _uiState.value.selectedGenres.contains(genreId)
     }
 
-    /**
-     * Toggle category selection by name (UI tag)
-     */
     fun toggleCategory(categoryName: String) {
         val categoryId = categoryNameToId[categoryName.lowercase()]
         if (categoryId != null) {
@@ -310,17 +302,11 @@ class PreferencesViewModel(
         }
     }
 
-    /**
-     * Check if category is selected by name
-     */
     fun isCategorySelected(categoryName: String): Boolean {
         val categoryId = categoryNameToId[categoryName.lowercase()]
         return categoryId != null && _uiState.value.selectedCategories.contains(categoryId)
     }
 
-    /**
-     * Toggle play style selection
-     */
     fun togglePlayStyle(style: String) {
         when (style.lowercase()) {
             "casual" -> _uiState.value = _uiState.value.copy(casualSelected = !_uiState.value.casualSelected)
@@ -330,9 +316,6 @@ class PreferencesViewModel(
         checkForUnsavedChanges()
     }
 
-    /**
-     * Toggle monetization selection
-     */
     fun toggleMonetization(monetization: String) {
         when (monetization.lowercase()) {
             "free to play", "freetoplay" -> _uiState.value = _uiState.value.copy(freeToPlaySelected = !_uiState.value.freeToPlaySelected)
@@ -342,9 +325,6 @@ class PreferencesViewModel(
         checkForUnsavedChanges()
     }
 
-    /**
-     * Save all preferences to backend
-     */
     fun savePreferences() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null, saveSuccess = false)
@@ -420,16 +400,10 @@ class PreferencesViewModel(
         }
     }
 
-    /**
-     * Clear error message
-     */
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
 
-    /**
-     * Retry loading preferences
-     */
     fun retry() {
         loadPreferencesData()
     }

@@ -181,9 +181,7 @@ fun PreferencesScreen(
                         title = "Genres",
                         subtitle = "Select your favorite game genres"
                 ) {
-                    // Organize genres in a well-structured grid with better spacing
                     if (uiState.availableGenres.isEmpty()) {
-                        // Show message when no genres are available
                         Text(
                             text = if (uiState.error != null) {
                                 "Unable to load genres. Tap to retry."
@@ -205,7 +203,6 @@ fun PreferencesScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Render genres dynamically from backend
                             uiState.availableGenres.forEach { genre ->
                                 InterestTag(
                                     text = genre.name,
