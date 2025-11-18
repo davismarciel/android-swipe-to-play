@@ -47,9 +47,6 @@ import com.project.swipetoplay.ui.theme.ProfileIconPurple
 import androidx.core.net.toUri
 import java.util.Locale
 
-/**
- * Detailed game screen with full information, ratings, media carousel, and Steam link
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameDetailScreen(
@@ -160,7 +157,6 @@ private fun GameDetailContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            // Game name above the icon
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -182,7 +178,6 @@ private fun GameDetailContent(
                 }
             }
 
-            // Game icon
             val imageUrl = game.getSteamHeaderImageUrl()
             val headerAspectRatio = 460f / 215f
             if (imageUrl != null) {
@@ -230,7 +225,6 @@ private fun GameDetailContent(
                 }
             }
 
-            // Simple review indicator after description
             if (game.positiveRatio != null) {
                 ReviewIndicator(positiveRatio = game.positiveRatio)
             }
@@ -354,9 +348,6 @@ private fun GameDetailContent(
     }
 }
 
-/**
- * Opens an image in fullscreen using an intent
- */
 private fun viewImageFullscreen(context: Context, imageUrl: String) {
     try {
         val intent = Intent(Intent.ACTION_VIEW, imageUrl.toUri())
@@ -448,16 +439,11 @@ private fun RatingsSection(rating: com.project.swipetoplay.data.remote.dto.Commu
         }
     }
     
-    // Show help dialog
     if (showHelpDialog) {
         RatingHelpDialog(onDismiss = { showHelpDialog = false })
     }
 }
 
-/**
- * Converts percentage to a rating score (0-5 scale)
- * Linear conversion: 0% = 1.0, 100% = 5.0
- */
 private fun percentageToRating(percentage: Double): Double {
     return 1.0 + (percentage / 100.0) * 4.0
 }
@@ -557,9 +543,6 @@ private fun RatingItem(
     }
 }
 
-/**
- * Help dialog explaining how rating scores are calculated
- */
 @Composable
 private fun RatingHelpDialog(
     onDismiss: () -> Unit
@@ -1076,7 +1059,6 @@ private fun HardwareRequirementsCard(
             } else {
                 Spacer(modifier = Modifier.height(6.dp))
                 
-                // Show a preview of requirements
                 val previewText = requirementsText
                     .take(80)
                     .replace(Regex("Minimum:|Recommended:"), "")
@@ -1097,7 +1079,6 @@ private fun HardwareRequirementsCard(
 }
 
 private fun formatRequirementsText(text: String): String {
-    // Clean up the text by removing HTML entities and formatting
     return text
         .replace(Regex("&amp;"), "&")
         .replace(Regex("&lt;"), "<")

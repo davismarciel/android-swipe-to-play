@@ -17,10 +17,7 @@ data class GameDetailUiState(
     val error: String? = null
 )
 
-/**
- * ViewModel for GameDetailScreen
- * Manages game details loading and display
- */
+
 class GameDetailViewModel(
     private val gameRepository: GameRepository
 ) : ViewModel() {
@@ -28,9 +25,7 @@ class GameDetailViewModel(
     private val _uiState = MutableStateFlow(GameDetailUiState())
     val uiState: StateFlow<GameDetailUiState> = _uiState.asStateFlow()
 
-    /**
-     * Load game details by ID
-     */
+    
     fun loadGameDetails(gameId: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -58,9 +53,7 @@ class GameDetailViewModel(
         }
     }
 
-    /**
-     * Retry loading game details
-     */
+    
     fun retry() {
         _uiState.value.game?.id?.let { gameId ->
             loadGameDetails(gameId)
