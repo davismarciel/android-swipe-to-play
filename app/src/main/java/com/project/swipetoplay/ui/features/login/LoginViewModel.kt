@@ -13,55 +13,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * Data class representing the UI state for the Login screen.
- *
- * @property isLoading Whether Google authentication is in progress
- * @property isValidating Whether backend validation is in progress
- * @property user The authenticated user, null if not authenticated
- * @property errorMessage Error message to display, null if no error
- */
 data class LoginUiState(
     val isLoading: Boolean = false,
     val isValidating: Boolean = false,
+    val isCheckingApi: Boolean = false,
     val user: GoogleUser? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isApiOnline: Boolean? = null
 )
 
-/**
- * Sealed class representing events that can occur during login.
- */
 sealed class LoginEvent {
-    /**
-     * User requested to sign in.
-     */
     data object SignInRequested : LoginEvent()
-
-    /**
-     * Sign-in was successful.
-     *
-     * @property user The authenticated user
-     */
     data class SignInSuccess(val user: GoogleUser) : LoginEvent()
-
-    /**
-     * Sign-in failed with an error.
-     *
-     * @property message Error message
-     */
     data class SignInError(val message: String) : LoginEvent()
-
-    /**
-     * Sign-in was cancelled by the user.
-     */
     data object SignInCancelled : LoginEvent()
 }
 
-/**
- * ViewModel for managing Login screen state and authentication logic.
- *
- * @property authManager Manager for handling Google authentication
- */
 class LoginViewModel(
     private val authManager: GoogleAuthManager
 ) : ViewModel() {
@@ -70,11 +37,12 @@ class LoginViewModel(
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     init {
+        checkApiHealth()
         checkExistingAuth()
         
         viewModelScope.launch {
             while (true) {
-                kotlinx.coroutines.delay(3000) // Check every 3 seconds (reduzido para economizar recursos)
+                kotlinx.coroutines.delay(3000)
                 val tokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
                 val currentUser = _uiState.value.user
                 
@@ -96,11 +64,55 @@ class LoginViewModel(
         }
     }
 
-    /**
-     * Checks if there's an existing valid token and restores user session
-     */
+    private fun checkApiHealth() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCheckingApi = true) }
+            try {
+                val authApiService = com.project.swipetoplay.data.remote.api.RetrofitClient.authApiService
+                val response = authApiService.health()
+                
+                val isOnline = response.isSuccessful && response.body()?.success == true
+                _uiState.update { 
+                    it.copy(
+                        isCheckingApi = false,
+                        isApiOnline = isOnline
+                    )
+                }
+                
+                if (!isOnline) {
+                    ErrorLogger.logWarning("LoginViewModel", "API health check failed: ${response.code()}", null)
+                    _uiState.update { 
+                        it.copy(
+                            errorMessage = "A API está offline ou indisponível. Por favor, verifique sua conexão e tente novamente."
+                        )
+                    }
+                } else {
+                    ErrorLogger.logDebug("LoginViewModel", "API health check successful")
+                }
+            } catch (e: Exception) {
+                ErrorLogger.logError("LoginViewModel", "Error checking API health: ${e.message}", e)
+                _uiState.update { 
+                    it.copy(
+                        isCheckingApi = false,
+                        isApiOnline = false,
+                        errorMessage = "Não foi possível conectar à API. Verifique sua conexão com a internet e tente novamente."
+                    )
+                }
+            }
+        }
+    }
+
     private fun checkExistingAuth() {
         viewModelScope.launch {
+            while (_uiState.value.isCheckingApi) {
+                kotlinx.coroutines.delay(100)
+            }
+            
+            if (_uiState.value.isApiOnline != true) {
+                ErrorLogger.logWarning("LoginViewModel", "Skipping auth check - API is offline")
+                return@launch
+            }
+            
             try {
                 val tokenManager = com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()
                 if (tokenManager?.isAuthenticated() == true) {
@@ -138,15 +150,44 @@ class LoginViewModel(
             } catch (e: Exception) {
                 ErrorLogger.logError("LoginViewModel", "Error checking existing auth: ${e.message}", e)
                 com.project.swipetoplay.data.remote.api.RetrofitClient.getTokenManager()?.clearToken()
+                _uiState.update { 
+                    it.copy(
+                        isApiOnline = false,
+                        errorMessage = "Erro ao verificar credenciais. A API pode estar offline."
+                    )
+                }
             }
         }
     }
 
-    /**
-     * Initiates the Google Sign-In process.
-     */
     fun onSignInClick() {
         ErrorLogger.logDebug("LoginViewModel", "User clicked Sign-In button")
+        
+        if (_uiState.value.isApiOnline == false) {
+            ErrorLogger.logWarning("LoginViewModel", "Sign-in blocked - API is offline")
+            _uiState.update { 
+                it.copy(
+                    errorMessage = "A API está offline ou indisponível. Por favor, verifique sua conexão e tente novamente."
+                )
+            }
+            checkApiHealth()
+            return
+        }
+        
+        if (_uiState.value.isApiOnline == null) {
+            ErrorLogger.logDebug("LoginViewModel", "API status unknown, checking health first")
+            checkApiHealth()
+            viewModelScope.launch {
+                while (_uiState.value.isCheckingApi) {
+                    kotlinx.coroutines.delay(100)
+                }
+                if (_uiState.value.isApiOnline == true) {
+                    onSignInClick()
+                }
+            }
+            return
+        }
+        
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
@@ -213,23 +254,21 @@ class LoginViewModel(
                 }
             } catch (e: Exception) {
                 ErrorLogger.logError("LoginViewModel", "Sign-in error: ${e.message}", e)
+                val errorMessage = ErrorHandler.getUserFriendlyMessage(e)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         isValidating = false,
                         user = null,
-                        errorMessage = ErrorHandler.getUserFriendlyMessage(e)
+                        errorMessage = errorMessage,
+                        isApiOnline = false
                     )
                 }
+                checkApiHealth()
             }
         }
     }
 
-    /**
-     * Processes the authentication result and updates UI state accordingly.
-     *
-     * @param result The result of the authentication attempt
-     */
     fun handleAuthResult(result: AuthResult) {
         when (result) {
             is AuthResult.Success -> {
@@ -265,16 +304,16 @@ class LoginViewModel(
         }
     }
 
-    /**
-     * Clears any error message from the UI state.
-     */
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    /**
-     * Signs out the current user.
-     */
+    fun retryApiCheck() {
+        viewModelScope.launch {
+            checkApiHealth()
+        }
+    }
+
     fun signOut() {
         ErrorLogger.logDebug("LoginViewModel", "Signing out user")
         viewModelScope.launch {
@@ -285,9 +324,6 @@ class LoginViewModel(
     }
 }
 
-/**
- * Factory for creating LoginViewModel instances with dependencies.
- */
 class LoginViewModelFactory(
     private val authManager: GoogleAuthManager
 ) : androidx.lifecycle.ViewModelProvider.Factory {
