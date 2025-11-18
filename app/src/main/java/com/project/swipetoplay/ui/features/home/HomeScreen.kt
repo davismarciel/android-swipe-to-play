@@ -163,47 +163,6 @@ fun HomeScreen(
                                         }
                                     }
                                 }
-                                uiState.hasReachedDailyLimit -> {
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.9f)
-                                            .padding(16.dp),
-                                        shape = RoundedCornerShape(24.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = Color(0xFF1A1A1A).copy(alpha = 0.9f)
-                                        ),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center,
-                                            modifier = Modifier.padding(32.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Schedule,
-                                                contentDescription = null,
-                                                tint = Color(0xFFFFA726),
-                                                modifier = Modifier.size(64.dp)
-                                            )
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            Text(
-                                                text = "Daily Limit Reached",
-                                                color = Color.White,
-                                                fontSize = 24.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                textAlign = TextAlign.Center
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                text = "You've reached your daily limit of 20 games.\nCome back tomorrow!",
-                                                color = Color.White.copy(alpha = 0.7f),
-                                                fontSize = 16.sp,
-                                                textAlign = TextAlign.Center,
-                                                lineHeight = 24.sp
-                                            )
-                                        }
-                                    }
-                                }
                                 currentGame != null -> {
                                     CardStack(
                                         remainingCards = uiState.games.size - uiState.currentGameIndex,
@@ -260,21 +219,12 @@ fun HomeScreen(
                                                 textAlign = TextAlign.Center
                                             )
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            if (uiState.remainingGames > 0) {
-                                                Text(
-                                                    text = "Remaining today: ${uiState.remainingGames}",
-                                                    color = Color.White.copy(alpha = 0.7f),
-                                                    fontSize = 16.sp,
-                                                    textAlign = TextAlign.Center
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = "Check back later for more recommendations",
-                                                    color = Color.White.copy(alpha = 0.7f),
-                                                    fontSize = 16.sp,
-                                                    textAlign = TextAlign.Center
-                                                )
-                                            }
+                                            Text(
+                                                text = "Check back later for more recommendations",
+                                                color = Color.White.copy(alpha = 0.7f),
+                                                fontSize = 16.sp,
+                                                textAlign = TextAlign.Center
+                                            )
                                         }
                                     }
                                 }
@@ -283,41 +233,6 @@ fun HomeScreen(
                     }
                 }
 
-                if (!uiState.hasReachedDailyLimit && !uiState.isLoading && uiState.remainingGames > 0 && uiState.games.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 12.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF1A1A1A).copy(alpha = 0.6f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = null,
-                                tint = Color(0xFFFF6B6B),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Games remaining today: ${uiState.remainingGames}",
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
 
             }
             
@@ -558,7 +473,6 @@ private fun SwipeableGameCard(
         label = "animatedOffsetY"
     )
 
-    // Smooth easing for card flip - starts fast, ends smoothly with subtle overshoot
     val flipEasing = CubicBezierEasing(0.34f, 1.2f, 0.64f, 1f)
     
     val animatedEntranceRotationY by animateFloatAsState(
@@ -618,15 +532,9 @@ private fun SwipeableGameCard(
     }
 
     val flipScaleX = if (abs(rotationY) > 0) {
-        // Create a more realistic 3D perspective effect during flip
-        // When card is edge-on (90°), scale should be minimal
-        // When card is facing viewer (0° or 180°), scale should be full
         val angleRad = Math.toRadians(abs(rotationY).toDouble())
-        // Use sine for edge-on effect: sin(0°) = 0, sin(90°) = 1, sin(180°) = 0
-        // We want: scale = 1 when angle is 0° or 180°, scale = min when angle is 90°
-        // So: scale = 1 - (1 - minScale) * sin²(angle)
         val sinValue = kotlin.math.sin(angleRad).toFloat()
-        val minScale = 0.25f // Minimum scale when completely edge-on
+        val minScale = 0.25f
         (1f - (1f - minScale) * sinValue * sinValue).coerceIn(minScale, 1f)
     } else {
         1f
@@ -638,11 +546,8 @@ private fun SwipeableGameCard(
             (1f - (abs(animatedOffsetX) / 1800f)).coerceIn(0f, 1f)
         }
         isAnimatingIn -> {
-            // During flip: more opaque when facing viewer (0° or 180°), less at 90° (edge-on)
             val angleRad = Math.toRadians(animatedEntranceRotationY.toDouble())
-            // Use absolute value of cosine to get opacity based on viewing angle
             val opacityFactor = kotlin.math.abs(kotlin.math.cos(angleRad)).toFloat()
-            // Start from 0.5 opacity at 180°, reach 1.0 at 0° for smoother transition
             (0.5f + opacityFactor * 0.5f).coerceIn(0.5f, 1f)
         }
         else -> {
@@ -659,7 +564,6 @@ private fun SwipeableGameCard(
     val cameraDistance = when {
         isClicking -> 12f + (animatedClickTranslationZ / -8f)
         isAnimatingIn -> {
-            // Increase camera distance during entrance for better depth effect
             val depthFactor = (animatedEntranceTranslationZ / -150f).coerceIn(0f, 1f)
             12f + (depthFactor * 6f)
         }
