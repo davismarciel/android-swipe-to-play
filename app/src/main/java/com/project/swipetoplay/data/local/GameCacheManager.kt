@@ -12,10 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Manages caching of games and preloading of images
- * Preloads 20 games (default daily limit) when app starts
- */
 class GameCacheManager(
     private val context: Context,
     private val recommendationRepository: RecommendationRepository
@@ -24,31 +20,18 @@ class GameCacheManager(
     private var isPreloading = false
     private val imageLoader = ImageLoader(context)
 
-    /**
-     * Get cached games if available
-     */
     fun getCachedGames(): List<Game>? {
         return cachedGames
     }
 
-    /**
-     * Check if games are cached
-     */
     fun hasCachedGames(): Boolean {
         return cachedGames != null && cachedGames!!.isNotEmpty()
     }
 
-    /**
-     * Check if preloading is in progress
-     */
     fun isPreloading(): Boolean {
         return isPreloading
     }
 
-    /**
-     * Preload 20 games and their images
-     * Should be called when app starts and user is authenticated
-     */
     fun preloadGames(
         scope: CoroutineScope,
         onSuccess: ((List<Game>) -> Unit)? = null,
@@ -77,7 +60,7 @@ class GameCacheManager(
                         val games = GameMapper.toGameList(response.recommendations)
                         ErrorLogger.logDebug(
                             "GameCacheManager",
-                            "Cached payload - remaining today: ${response.dailyLimitInfo?.remainingToday ?: "unknown"}"
+                            "Cached ${games.size} games"
                         )
 
                         preloadImages(games)
@@ -108,9 +91,6 @@ class GameCacheManager(
         }
     }
 
-    /**
-     * Preload images for all games using Coil
-     */
     private suspend fun preloadImages(games: List<Game>) {
         withContext(Dispatchers.IO) {
             val imageUrls = games.mapNotNull { game ->
@@ -135,9 +115,6 @@ class GameCacheManager(
         }
     }
 
-    /**
-     * Clear the cache
-     */
     fun clearCache() {
         cachedGames = null
         val prefs = context.getSharedPreferences("swipe_to_play_prefs", Context.MODE_PRIVATE)
@@ -147,9 +124,6 @@ class GameCacheManager(
         ErrorLogger.logDebug("GameCacheManager", "Cache cleared")
     }
     
-    /**
-     * Check if cache was cleared and reset the flag
-     */
     fun wasCacheCleared(): Boolean {
         val prefs = context.getSharedPreferences("swipe_to_play_prefs", Context.MODE_PRIVATE)
         val wasCleared = prefs.getBoolean("cache_was_cleared", false)

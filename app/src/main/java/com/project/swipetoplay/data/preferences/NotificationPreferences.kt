@@ -3,9 +3,7 @@ package com.project.swipetoplay.data.preferences
 import android.content.Context
 import android.content.SharedPreferences
 
-/**
- * Manages notification preferences using SharedPreferences
- */
+
 class NotificationPreferences(context: Context) {
     
     private val sharedPrefs: SharedPreferences = 
@@ -45,9 +43,7 @@ class NotificationPreferences(context: Context) {
         get() = sharedPrefs.getBoolean(KEY_EMAIL_NOTIFICATIONS, DEFAULT_EMAIL)
         set(value) = sharedPrefs.edit().putBoolean(KEY_EMAIL_NOTIFICATIONS, value).apply()
     
-    /**
-     * Saves all notification preferences at once
-     */
+    
     fun saveAll(
         swipeReady: Boolean,
         sound: Boolean,
@@ -65,9 +61,7 @@ class NotificationPreferences(context: Context) {
         }
     }
     
-    /**
-     * Resets all preferences to default values
-     */
+    
     fun resetToDefaults() {
         saveAll(
             swipeReady = DEFAULT_SWIPE_READY,
