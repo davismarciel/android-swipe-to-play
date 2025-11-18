@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Response model for user preferences from the API
- */
+
 data class UserPreferenceResponse(
     @SerializedName("preferences")
     val preferences: UserPreferenceData? = null,

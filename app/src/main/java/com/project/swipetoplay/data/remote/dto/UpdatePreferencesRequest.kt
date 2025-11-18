@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * DTO for updating user preferences
- */
+
 data class UpdatePreferencesRequest(
     @SerializedName("prefer_windows")
     val preferWindows: Boolean? = null,

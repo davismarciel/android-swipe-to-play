@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Request body for completing onboarding
- */
+
 data class OnboardingCompleteRequest(
     @SerializedName("preferences")
     val preferences: PreferencesData? = null,
@@ -19,9 +17,7 @@ data class OnboardingCompleteRequest(
     val categories: List<CategoryPreferenceItem>? = null
 )
 
-/**
- * General preferences data
- */
+
 data class PreferencesData(
     @SerializedName("prefer_windows")
     val preferWindows: Boolean? = null,
@@ -60,9 +56,7 @@ data class PreferencesData(
     val includeEarlyAccess: Boolean? = null
 )
 
-/**
- * Monetization preferences data
- */
+
 data class MonetizationData(
     @SerializedName("tolerance_microtransactions")
     val toleranceMicrotransactions: Int? = null,
@@ -95,9 +89,7 @@ data class MonetizationData(
     val preferOneTimePurchase: Boolean? = null
 )
 
-/**
- * Onboarding status response
- */
+
 data class OnboardingStatusResponse(
     @SerializedName("completed")
     val completed: Boolean,

@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * DTO for updating monetization preferences
- */
+
 data class UpdateMonetizationPreferencesRequest(
     @SerializedName("prefer_one_time_purchase")
     val preferOneTimePurchase: Boolean? = null,

@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * DTO for updating preferred genres
- */
+
 data class UpdatePreferredGenresRequest(
     @SerializedName("genres")
     val genres: List<GenrePreferenceItem>

@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Response model for game data from the API
- */
+
 data class GameResponse(
     @SerializedName("id")
     val id: Int,
@@ -96,26 +94,19 @@ data class GameResponse(
     @SerializedName("updated_at")
     val updatedAt: String? = null
 ) {
-    /**
-     * Get Steam URL for the game
-     */
+    
     fun getSteamUrl(): String {
         return "https://store.steampowered.com/app/$steamId/"
     }
 
-    /**
-     * Get Steam library image URL (vertical, larger image)
-     */
+    
     fun getSteamLibraryImageUrl(): String? {
         return steamId?.let { 
             "https://steamcdn-a.akamaihd.net/steam/apps/$it/library_600x900_2x.jpg"
         }
     }
 
-    /**
-     * Get Steam header image URL (horizontal, smaller icon)
-     * This is the icon used in Steam store pages
-     */
+    
     fun getSteamHeaderImageUrl(): String? {
         return icon ?: steamId?.let {
             "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/$it/header.jpg"
@@ -194,9 +185,7 @@ data class CommunityRatingResponse(
     val cheaters: Double? = null
 )
 
-/**
- * Individual media item in the media array
- */
+
 data class MediaItemResponse(
     @SerializedName("id")
     val id: Int? = null,
@@ -211,10 +200,7 @@ data class MediaItemResponse(
     val thumbnail: String? = null
 )
 
-/**
- * Legacy MediaResponse - kept for backward compatibility if needed
- * Note: The API returns media as an array, so use List<MediaItemResponse>
- */
+
 data class MediaResponse(
     @SerializedName("header_image")
     val headerImage: String? = null,
