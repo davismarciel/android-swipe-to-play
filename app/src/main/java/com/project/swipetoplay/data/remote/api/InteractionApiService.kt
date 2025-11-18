@@ -6,11 +6,6 @@ import retrofit2.http.DELETE
 import retrofit2.http.POST
 import retrofit2.http.Path
 
-/**
- * API service for game interaction endpoints (like, dislike, view, etc.)
- * These interactions are used by the recommendation algorithm only,
- * not visible to the user.
- */
 interface InteractionApiService {
 
     @POST("api/games/{gameId}/like")
@@ -27,11 +22,5 @@ interface InteractionApiService {
     suspend fun viewGame(
         @Path("gameId") gameId: Int
     ): Response<ApiResponse<Map<String, Any>>>
-
-    /**
-     * Delete all interactions for the current user (DEV ONLY)
-     */
-    @DELETE("api/interactions/clear")
-    suspend fun clearAllInteractions(): Response<ApiResponse<Map<String, Any>>>
 }
 
