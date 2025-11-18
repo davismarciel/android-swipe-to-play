@@ -8,15 +8,9 @@ import com.project.swipetoplay.data.remote.dto.RecommendationResponse
 import com.project.swipetoplay.data.error.ErrorHandler
 import com.project.swipetoplay.data.error.ErrorLogger
 
-/**
- * Repository for recommendation-related data operations
- */
 class RecommendationRepository {
     private val apiService: RecommendationApiService = RetrofitClient.recommendationApiService
 
-    /**
-     * Get personalized game recommendations
-     */
     suspend fun getRecommendations(limit: Int? = null): Result<RecommendationResponse> {
         return try {
             val response = apiService.getRecommendations(limit = limit)
@@ -39,9 +33,6 @@ class RecommendationRepository {
         }
     }
 
-    /**
-     * Get similar games to a specific game
-     */
     suspend fun getSimilarGames(gameId: Int, limit: Int? = null): Result<List<GameResponse>> {
         return try {
             val response = apiService.getSimilarGames(gameId = gameId, limit = limit)
@@ -64,9 +55,6 @@ class RecommendationRepository {
         }
     }
 
-    /**
-     * Get recommendation statistics for the current user
-     */
     suspend fun getRecommendationStats(): Result<Map<String, Any>> {
         return try {
             val response = apiService.getRecommendationStats()

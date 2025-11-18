@@ -8,15 +8,9 @@ import com.project.swipetoplay.data.error.ErrorHandler
 import com.project.swipetoplay.data.error.ErrorLogger
 import retrofit2.Response
 
-/**
- * Repository for game-related data operations
- */
 class GameRepository {
     private val apiService: GameApiService = RetrofitClient.gameApiService
 
-    /**
-     * Get list of games with optional filters
-     */
     suspend fun getGames(
         search: String? = null,
         genreId: Int? = null,
@@ -53,9 +47,6 @@ class GameRepository {
         }
     }
 
-    /**
-     * Get game details by ID
-     */
     suspend fun getGameById(id: Int): Result<GameResponse> {
         return try {
             ErrorLogger.logDebug("GameRepository", "Fetching game by ID: $id")
@@ -83,9 +74,6 @@ class GameRepository {
         }
     }
 
-    /**
-     * Get all available genres
-     */
     suspend fun getGenres(): Result<List<com.project.swipetoplay.data.remote.dto.GenreResponse>> {
         return try {
             val response = apiService.getGenres()
@@ -108,9 +96,6 @@ class GameRepository {
         }
     }
 
-    /**
-     * Get all available categories
-     */
     suspend fun getCategories(): Result<List<com.project.swipetoplay.data.remote.dto.CategoryResponse>> {
         return try {
             val response = apiService.getCategories()

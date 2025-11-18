@@ -13,15 +13,9 @@ import com.project.swipetoplay.data.remote.dto.UserPreferenceResponse
 import com.project.swipetoplay.data.error.ErrorHandler
 import com.project.swipetoplay.data.error.ErrorLogger
 
-/**
- * Repository for user preference-related data operations
- */
 class UserPreferenceRepository {
     private val apiService: UserPreferenceApiService = RetrofitClient.userPreferenceApiService
 
-    /**
-     * Get user preferences
-     */
     suspend fun getPreferences(): Result<UserPreferenceResponse> {
         return try {
             val response = apiService.getPreferences()
@@ -44,9 +38,6 @@ class UserPreferenceRepository {
         }
     }
 
-    /**
-     * Update user preferences
-     */
     suspend fun updatePreferences(
         preferWindows: Boolean? = null,
         preferMac: Boolean? = null,
@@ -79,9 +70,6 @@ class UserPreferenceRepository {
         }
     }
 
-    /**
-     * Update monetization preferences
-     */
     suspend fun updateMonetizationPreferences(
         preferOneTimePurchase: Boolean? = null,
         avoidSubscription: Boolean? = null,
@@ -124,9 +112,6 @@ class UserPreferenceRepository {
         }
     }
 
-    /**
-     * Update preferred genres
-     */
     suspend fun updatePreferredGenres(
         genres: List<GenrePreferenceItem>
     ): Result<List<Any>> {
@@ -149,9 +134,6 @@ class UserPreferenceRepository {
         }
     }
 
-    /**
-     * Update preferred categories
-     */
     suspend fun updatePreferredCategories(
         categories: List<CategoryPreferenceItem>
     ): Result<List<Any>> {

@@ -8,15 +8,9 @@ import com.project.swipetoplay.data.remote.dto.OnboardingStatusResponse
 import com.project.swipetoplay.data.error.ErrorHandler
 import com.project.swipetoplay.data.error.ErrorLogger
 
-/**
- * Repository for onboarding-related data operations
- */
 class OnboardingRepository {
     private val apiService: OnboardingApiService = RetrofitClient.onboardingApiService
 
-    /**
-     * Complete onboarding by saving all preferences at once
-     */
     suspend fun completeOnboarding(request: OnboardingCompleteRequest): Result<Map<String, Any>> {
         return try {
             ErrorLogger.logDebug("OnboardingRepository", "Sending onboarding data to API")
@@ -42,9 +36,6 @@ class OnboardingRepository {
         }
     }
 
-    /**
-     * Get initial recommendations after onboarding
-     */
     suspend fun getInitialRecommendations(limit: Int? = 20): Result<List<GameResponse>> {
         return try {
             ErrorLogger.logDebug("OnboardingRepository", "Fetching initial recommendations (limit: $limit)")
@@ -70,9 +61,6 @@ class OnboardingRepository {
         }
     }
 
-    /**
-     * Check onboarding status
-     */
     suspend fun checkStatus(): Result<OnboardingStatusResponse> {
         return try {
             ErrorLogger.logDebug("OnboardingRepository", "Checking onboarding status")
