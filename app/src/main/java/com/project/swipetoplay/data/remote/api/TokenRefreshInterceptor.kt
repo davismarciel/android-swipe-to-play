@@ -9,11 +9,7 @@ import okhttp3.Response
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-/**
- * Interceptor that automatically refreshes the token when a 401 Unauthorized response is received.
- * Prevents infinite loops by skipping refresh attempts for the refresh endpoint itself.
- * Uses synchronization to prevent multiple simultaneous refresh attempts.
- */
+
 class TokenRefreshInterceptor(
     private val tokenManager: TokenManager,
     private val authApiService: AuthApiService

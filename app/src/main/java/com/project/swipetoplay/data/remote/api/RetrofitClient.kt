@@ -17,10 +17,6 @@ object RetrofitClient {
 
     private var tokenManager: TokenManager? = null
 
-    /**
-     * Initialize RetrofitClient with context for token management
-     * Must be called before any API calls are made
-     */
     fun initialize(context: Context) {
         if (tokenManager == null) {
             com.project.swipetoplay.data.error.ErrorLogger.logDebug("RetrofitClient", "Initializing TokenManager")
@@ -30,16 +26,12 @@ object RetrofitClient {
         }
     }
 
-    /**
-     * JWT Authentication Interceptor
-     * Adds Authorization header to all authenticated requests
-     * Note: Accesses tokenManager dynamically at request time, not at creation time
-     */
     private fun createAuthInterceptor(): Interceptor {
         return Interceptor { chain ->
             val originalRequest = chain.request()
             
-            if (originalRequest.url.encodedPath.contains("/auth/login")) {
+            if (originalRequest.url.encodedPath.contains("/auth/login") || 
+                originalRequest.url.encodedPath.contains("/auth/health")) {
                 return@Interceptor chain.proceed(originalRequest)
             }
 
@@ -75,10 +67,6 @@ object RetrofitClient {
             .create()
     }
 
-    /**
-     * Create a basic OkHttpClient without token refresh interceptor
-     * Used to create authApiService for token refresh
-     */
     private val basicOkHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor(createAuthInterceptor())
@@ -89,10 +77,6 @@ object RetrofitClient {
             .build()
     }
 
-    /**
-     * Basic Retrofit instance without token refresh interceptor
-     * Used to create authApiService
-     */
     private val basicRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -101,18 +85,10 @@ object RetrofitClient {
             .build()
     }
 
-    /**
-     * AuthApiService created with basic retrofit (without refresh interceptor)
-     * This is used by TokenRefreshInterceptor to avoid circular dependency
-     */
     private val authApiServiceForRefresh: AuthApiService by lazy {
         basicRetrofit.create(AuthApiService::class.java)
     }
 
-    /**
-     * Create OkHttpClient with token refresh interceptor
-     * This is the main client used by all API services
-     */
     private val okHttpClient: OkHttpClient by lazy {
         val currentTokenManager = tokenManager
             ?: throw IllegalStateException("TokenManager not initialized. Call RetrofitClient.initialize(context) first.")
@@ -127,9 +103,6 @@ object RetrofitClient {
             .build()
     }
 
-    /**
-     * Main Retrofit instance with token refresh interceptor
-     */
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -162,9 +135,6 @@ object RetrofitClient {
         retrofit.create(OnboardingApiService::class.java)
     }
 
-    /**
-     * Get TokenManager instance
-     */
     fun getTokenManager(): TokenManager? = tokenManager
 }
 
