@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Response from the authentication API
- */
+
 data class LoginResponse(
     @SerializedName("success")
     val success: Boolean = false,

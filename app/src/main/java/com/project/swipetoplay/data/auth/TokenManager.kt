@@ -4,9 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.project.swipetoplay.data.error.ErrorLogger
 
-/**
- * Manages JWT token storage and retrieval
- */
 class TokenManager(private val context: Context) {
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -27,9 +24,6 @@ class TokenManager(private val context: Context) {
         private const val KEY_EXPIRES_IN = "expires_in"
     }
 
-    /**
-     * Save JWT token to shared preferences
-     */
     fun saveToken(accessToken: String, tokenType: String = "Bearer", expiresIn: Int? = null) {
         ErrorLogger.logDebug("TokenManager", "Saving new token (length: ${accessToken.length}, type: $tokenType)")
         
@@ -46,10 +40,6 @@ class TokenManager(private val context: Context) {
         ErrorLogger.logDebug("TokenManager", "Token saved and cache updated")
     }
 
-    /**
-     * Get stored access token
-     * Uses in-memory cache to avoid reading from SharedPreferences on every request
-     */
     fun getAccessToken(): String? {
         if (isCacheValid && cachedAccessToken != null) {
             return cachedAccessToken
@@ -64,9 +54,6 @@ class TokenManager(private val context: Context) {
         return token
     }
 
-    /**
-     * Get token type (usually "Bearer")
-     */
     fun getTokenType(): String {
         if (isCacheValid && cachedTokenType != null) {
             return cachedTokenType!!
@@ -77,16 +64,10 @@ class TokenManager(private val context: Context) {
         return type
     }
 
-    /**
-     * Check if user is authenticated (has valid token)
-     */
     fun isAuthenticated(): Boolean {
         return getAccessToken() != null
     }
 
-    /**
-     * Clear stored token (logout)
-     */
     fun clearToken() {
         ErrorLogger.logDebug("TokenManager", "Clearing token")
         
@@ -103,10 +84,6 @@ class TokenManager(private val context: Context) {
         ErrorLogger.logDebug("TokenManager", "Token cleared and cache invalidated")
     }
 
-    /**
-     * Get full authorization header value
-     * Ensures "Bearer" (capital B) format for Laravel JWT compatibility
-     */
     fun getAuthorizationHeader(): String? {
         val token = getAccessToken() ?: return null
         val type = getTokenType()
