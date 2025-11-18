@@ -43,7 +43,6 @@ O **Swipe To Play** foi desenvolvido para resolver o problema comum de descobrir
 
 ### 💾 Armazenamento Local
 - Cache de jogos para melhor performance
-- Limite de jogos diários
 - Gerenciamento de estado de onboarding
 - Preferências de notificações
 
@@ -68,7 +67,7 @@ O projeto segue a arquitetura **Clean Architecture** com separação clara de re
 app/
 ├── data/
 │   ├── auth/              # Gerenciamento de autenticação
-│   ├── local/             # Gerenciadores locais (cache, limites, onboarding)
+│   ├── local/             # Gerenciadores locais (cache, onboarding)
 │   ├── preferences/        # Preferências do usuário
 │   ├── remote/            # API services e DTOs
 │   └── repository/        # Camada de repositório
