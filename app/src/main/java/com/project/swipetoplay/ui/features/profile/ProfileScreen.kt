@@ -26,11 +26,6 @@ import coil.compose.AsyncImage
 import com.project.swipetoplay.domain.model.GoogleUser
 import com.project.swipetoplay.ui.theme.*
 import com.project.swipetoplay.ui.components.TopBar
-import com.project.swipetoplay.data.repository.InteractionRepository
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import com.project.swipetoplay.data.local.GameLimitManager
 
 @Composable
 fun ProfileScreen(
@@ -39,12 +34,6 @@ fun ProfileScreen(
     onNavigateToNotifications: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val interactionRepository = remember { InteractionRepository() }
-    val gameLimitManager = remember { GameLimitManager(context) }
-    var showClearInteractionsDialog by remember { mutableStateOf(false) }
-    var isClearingInteractions by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -174,93 +163,8 @@ fun ProfileScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                ProfileSection(
-                    title = "Development",
-                    items = listOf(
-                        ProfileMenuItem(
-                            title = "Clear all interactions (DEV)",
-                            icon = Icons.Default.Delete,
-                            iconColor = Color(0xFFFF9800), // Orange color for dev
-                            onClick = { showClearInteractionsDialog = true }
-                        )
-                    )
-                )
-
                 Spacer(modifier = Modifier.height(24.dp))
             }
-        }
-
-        if (showClearInteractionsDialog) {
-            AlertDialog(
-                onDismissRequest = { 
-                    if (!isClearingInteractions) {
-                        showClearInteractionsDialog = false
-                    }
-                },
-                title = {
-                    Text(
-                        text = "Clear All Interactions",
-                        color = ProfileText,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = {
-                    Text(
-                        text = "This will clear the local game cache and reset your daily limit. This allows you to see new game recommendations. Note: Server-side interactions may need to be cleared separately if the API endpoint is available.",
-                        color = ProfileText.copy(alpha = 0.8f)
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                isClearingInteractions = true
-                                
-                                val apiResult = interactionRepository.clearAllInteractions()
-                                
-                                gameLimitManager.resetCount()
-                                com.project.swipetoplay.data.error.ErrorLogger.logDebug("ProfileScreen", "Daily limit reset")
-                                
-                                if (apiResult.isSuccess) {
-                                    com.project.swipetoplay.data.error.ErrorLogger.logDebug("ProfileScreen", "All interactions, cache, and daily limit cleared successfully")
-                                } else {
-                                    com.project.swipetoplay.data.error.ErrorLogger.logWarning("ProfileScreen", "API endpoint not available (${apiResult.exceptionOrNull()?.message}), but local cache and limit cleared", apiResult.exceptionOrNull())
-                                    com.project.swipetoplay.data.error.ErrorLogger.logDebug("ProfileScreen", "Local cache and daily limit cleared (interactions will be cleared on next API sync)")
-                                }
-                                
-                                isClearingInteractions = false
-                                showClearInteractionsDialog = false
-                            }
-                        },
-                        enabled = !isClearingInteractions,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ProfileIconRed
-                        )
-                    ) {
-                        if (isClearingInteractions) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Text("Clear")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showClearInteractionsDialog = false },
-                        enabled = !isClearingInteractions
-                    ) {
-                        Text("Cancel", color = ProfileText)
-                    }
-                },
-                containerColor = ProfileCardBackground,
-                textContentColor = ProfileText
-            )
         }
     }
 }
