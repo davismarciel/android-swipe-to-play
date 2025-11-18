@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.project.swipetoplay.data.auth.GoogleAuthManager
+import com.project.swipetoplay.data.error.ErrorLogger
 import com.project.swipetoplay.ui.components.BottomBar
 import com.project.swipetoplay.ui.components.LogoutDialog
 import com.project.swipetoplay.ui.features.profile.ProfileScreen
@@ -78,11 +79,17 @@ fun AppContent() {
         }
     }
     
-    LaunchedEffect(isAuthenticated, hasCompletedOnboarding) {
-        if (isAuthenticated && currentScreen == "login") {
+    LaunchedEffect(isAuthenticated, hasCompletedOnboarding, uiState.isApiOnline) {
+
+        if (isAuthenticated && currentScreen == "login" && uiState.isApiOnline == true) {
             currentScreen = if (hasCompletedOnboarding) "home" else "onboarding"
             navigationHistory.clear()
             navigationHistory.add(if (hasCompletedOnboarding) "home" else "onboarding")
+        } else if (isAuthenticated && uiState.isApiOnline == false) {
+
+            ErrorLogger.logWarning("MainActivity", "API went offline, returning to login")
+            currentScreen = "login"
+            navigationHistory.clear()
         }
     }
     
