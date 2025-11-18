@@ -32,10 +32,6 @@ import com.project.swipetoplay.ui.theme.ProfileBackground
 import com.project.swipetoplay.ui.theme.ProfileText
 import com.project.swipetoplay.ui.theme.ProfileIconPurple
 
-/**
- * Onboarding screen - modern multi-step wizard for initial user preferences
- * This screen is mandatory and cannot be skipped
- */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OnboardingScreen(
@@ -76,7 +72,6 @@ fun OnboardingScreen(
             .fillMaxSize()
             .background(ProfileBackground)
     ) {
-        // Progress indicator
         val progress = (uiState.currentStep + 1).toFloat() / uiState.totalSteps.toFloat()
         val animatedProgress by animateFloatAsState(
             targetValue = progress,
@@ -93,7 +88,6 @@ fun OnboardingScreen(
             trackColor = Color.Gray.copy(alpha = 0.2f)
         )
 
-        // Step indicator
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -108,7 +102,6 @@ fun OnboardingScreen(
             )
         }
 
-        // Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -118,7 +111,6 @@ fun OnboardingScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Title
             Text(
                 text = when (uiState.currentStep) {
                     0 -> "Choose Your Favorite Genres"
@@ -134,7 +126,6 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Description
             Text(
                 text = when (uiState.currentStep) {
                     0 -> "Select the genres you enjoy. You can choose multiple options to help us personalize your recommendations."
@@ -149,7 +140,6 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Step content
             when (uiState.currentStep) {
                 0 -> GenreSelectionStep(
                     availableGenres = uiState.availableGenres,
@@ -181,7 +171,6 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
-        // Navigation buttons
         Surface(
             modifier = Modifier.fillMaxWidth(),
             tonalElevation = 8.dp,
@@ -275,7 +264,6 @@ fun OnboardingScreen(
             }
         }
 
-        // Error message
         uiState.error?.let { error ->
             Card(
                 modifier = Modifier
@@ -304,7 +292,6 @@ private fun GenreSelectionStep(
     selectedGenres: Map<Int, Int>,
     onToggleGenre: (Int) -> Unit
 ) {
-    // Use FlowRow for better responsive grid layout
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -593,7 +580,6 @@ private fun RatingSlider(
                 modifier = Modifier.fillMaxWidth()
             )
             
-            // Tolerance labels
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween

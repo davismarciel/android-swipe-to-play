@@ -39,10 +39,7 @@ data class OnboardingUiState(
     val isCompleted: Boolean = false
 )
 
-/**
- * ViewModel for Onboarding flow
- * Manages multi-step user preference configuration
- */
+
 class OnboardingViewModel(
     private val gameRepository: GameRepository,
     private val onboardingRepository: OnboardingRepository
@@ -53,10 +50,7 @@ class OnboardingViewModel(
 
     private var hasLoadedData = false
 
-    /**
-     * Load initial data from API
-     * Called when the screen is displayed to ensure token is ready
-     */
+    
     fun loadInitialData() {
         if (hasLoadedData) return
         hasLoadedData = true
@@ -66,9 +60,7 @@ class OnboardingViewModel(
         loadCategories()
     }
 
-    /**
-     * Load available genres from API
-     */
+    
     private fun loadGenres() {
         viewModelScope.launch {
             ErrorLogger.logDebug("OnboardingViewModel", "Fetching genres from API")
@@ -85,9 +77,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Load available categories from API (for future use)
-     */
+    
     private fun loadCategories() {
         viewModelScope.launch {
             ErrorLogger.logDebug("OnboardingViewModel", "Fetching categories from API")
@@ -103,9 +93,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Move to next step
-     */
+    
     fun nextStep() {
         val current = _uiState.value.currentStep
         if (current < _uiState.value.totalSteps - 1) {
@@ -113,9 +101,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Move to previous step
-     */
+    
     fun previousStep() {
         val current = _uiState.value.currentStep
         if (current > 0) {
@@ -123,9 +109,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Toggle genre selection
-     */
+    
     fun toggleGenre(genreId: Int, weight: Int = 5) {
         val selected = _uiState.value.selectedGenres.toMutableMap()
         if (selected.containsKey(genreId)) {
@@ -136,9 +120,7 @@ class OnboardingViewModel(
         _uiState.value = _uiState.value.copy(selectedGenres = selected)
     }
 
-    /**
-     * Update genre weight
-     */
+    
     fun updateGenreWeight(genreId: Int, weight: Int) {
         val selected = _uiState.value.selectedGenres.toMutableMap()
         if (selected.containsKey(genreId)) {
@@ -147,10 +129,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Save all preferences and complete onboarding
-     * Uses the new unified onboarding endpoint
-     */
+    
     fun completeOnboarding(onComplete: () -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -212,9 +191,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Update platform preference
-     */
+    
     fun updatePlatformPreference(platform: String, enabled: Boolean) {
         _uiState.value = when (platform.lowercase()) {
             "windows" -> _uiState.value.copy(preferWindows = enabled)
@@ -224,9 +201,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Update community rating tolerance
-     */
+    
     fun updateRatingTolerance(key: String, value: Int) {
         _uiState.value = when (key) {
             "toxicity" -> _uiState.value.copy(
@@ -248,9 +223,7 @@ class OnboardingViewModel(
         }
     }
 
-    /**
-     * Check if can proceed to next step
-     */
+    
     fun canProceedToNext(): Boolean {
         val state = _uiState.value
         return when (state.currentStep) {
