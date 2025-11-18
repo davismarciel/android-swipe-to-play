@@ -2,9 +2,7 @@ package com.project.swipetoplay.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Standard success response wrapper from the API
- */
+
 data class ApiResponse<T>(
     @SerializedName("success")
     val success: Boolean,
